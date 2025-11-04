@@ -19,7 +19,7 @@ class _HomepageState extends State<Homepage> {
   // We track the index for the four main tabs (Home, Search, Community, Messages).
   int _currentIndex = 0;
 
-  // List contains only the 4 pages accessible via the body widget.
+  // List contains only the 4 pages accessible via the body widget.h
   final List<Widget> _pages = const [
     // Index 0: Home (Maps to BottomNavBar Index 0)
     HomeContentPage(),
@@ -38,7 +38,7 @@ class _HomepageState extends State<Homepage> {
   void _showAddItemSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      // 1. Allows the sheet to take up almost the full screen height
+      // 1. Allows the sheet to take up almost the full scr
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext bc) {
@@ -49,7 +49,7 @@ class _HomepageState extends State<Homepage> {
             // 3. Adds the characteristic rounded top corners of a sheet
             borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
             // 4. Content is your AddItemPage
-            child:  MarketplaceButtons(),
+            child:  Morepage(),
           ),
         );
       },
