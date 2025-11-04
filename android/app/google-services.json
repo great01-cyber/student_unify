@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "148834837731",
+    "project_id": "studentunifyapp",
+    "storage_bucket": "studentunifyapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:148834837731:android:e9bde3d11a199d00b711d6",
+        "android_client_info": {
+          "package_name": "com.example.student_unify_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBGbhGIaYQ_J6Y7QGWhnxyVl5BJpUrivcc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
