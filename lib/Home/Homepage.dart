@@ -44,7 +44,7 @@ class _HomepageState extends State<Homepage> {
       builder: (BuildContext bc) {
         return const FractionallySizedBox(
           // 2. Defines the sheet height (95% of screen height)
-          heightFactor: 0.65,
+          heightFactor: 0.55,
           child: ClipRRect(
             // 3. Adds the characteristic rounded top corners of a sheet
             borderRadius: BorderRadius.vertical(top: Radius.circular(25)),

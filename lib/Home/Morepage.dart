@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../listings/BorrowPage.dart';
+import '../listings/Donate.dart';
+import '../listings/Exchange.dart';
+import '../listings/LendPage.dart';
+import '../listings/Sell.dart';
+
 class Morepage extends StatefulWidget {
   const Morepage({super.key});
 
@@ -15,9 +21,7 @@ class _MorepageState extends State<Morepage> {
         title: const Text('More Options'),
         backgroundColor: Colors.blueGrey,
       ),
-      // Set a light background color
       backgroundColor: Colors.grey[100],
-      // The ButtonGrid is the main content of the page
       body: const ButtonGrid(),
     );
   }
@@ -29,56 +33,89 @@ class _MorepageState extends State<Morepage> {
 class ButtonGrid extends StatelessWidget {
   const ButtonGrid({super.key});
 
-  // A simple handler for all button taps
-  void _onButtonTap(String buttonName) {
-    print('$buttonName button tapped!');
-    // You would add your navigation or logic here
-    // e.g., Navigator.push(context, MaterialPageRoute(builder: ...));
+  void _onButtonTap(BuildContext context, String buttonName, String pageTitle) {
+    Widget pageToNavigateTo;
+
+    switch (buttonName) {
+    // --- MODIFICATION 2: Pass 'pageTitle' to the page constructor ---
+      case 'Borrow':
+        pageToNavigateTo = Borrowpage();
+        break;
+      case 'Lend':
+        pageToNavigateTo = LendPage();
+        break;
+      case 'Donate':
+        pageToNavigateTo = DonatePage();
+        break;
+      case 'Exchange':
+        pageToNavigateTo = ExchangePage();
+        break;
+      case 'Sell':
+        pageToNavigateTo = SellPage();
+        break;
+      default:
+        print('$buttonName button tapped!');
+        return;
+    }
+
+    // This navigation code now sends the page with the title
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => pageToNavigateTo),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // GridView.count creates a grid with a fixed number of columns
+    // --- MODIFICATION 1: Define the subtitles ---
+    // This makes the code cleaner.
+    const String borrowSubtitle = "Borrow an Item";
+    const String lendSubtitle = "Lend an Item";
+    const String donateSubtitle = "Donate an Item";
+    const String exchangeSubtitle = "Exchange an Item";
+    const String sellSubtitle = "Sell an Item";
+
     return GridView.count(
-      // 2 columns
       crossAxisCount: 3,
-      // Reduced padding around the entire grid
       padding: const EdgeInsets.all(8.0),
-      // Reduced spacing between items horizontally
       crossAxisSpacing: 8.0,
-      // Reduced spacing between items vertically
       mainAxisSpacing: 8.0,
-      // Define the 5 buttons
       children: [
+        // --- MODIFICATION 2: Pass the subtitle to the button ---
         FancifulButton(
           label: 'Borrow',
-          icon: Icons.move_to_inbox, // 📥
+          subtitle: borrowSubtitle, // Pass subtitle
+          icon: Icons.move_to_inbox,
           color: Colors.blue,
-          onPressed: () => _onButtonTap('Borrow'),
+          onPressed: () => _onButtonTap(context, 'Borrow', borrowSubtitle),
         ),
         FancifulButton(
           label: 'Lend',
-          icon: Icons.outbox, // 📤
+          subtitle: lendSubtitle, // Pass subtitle
+          icon: Icons.outbox,
           color: Colors.green,
-          onPressed: () => _onButtonTap('Lend'),
+          onPressed: () => _onButtonTap(context, 'Lend', lendSubtitle),
         ),
         FancifulButton(
           label: 'Donate',
-          icon: Icons.favorite, // 💖
+          subtitle: donateSubtitle, // Pass subtitle
+          icon: Icons.favorite,
           color: Colors.red,
-          onPressed: () => _onButtonTap('Donate'),
+          onPressed: () => _onButtonTap(context, 'Donate', donateSubtitle),
         ),
         FancifulButton(
           label: 'Exchange',
-          icon: Icons.swap_horiz, // 🔄
+          subtitle: exchangeSubtitle, // Pass subtitle
+          icon: Icons.swap_horiz,
           color: Colors.orange,
-          onPressed: () => _onButtonTap('Exchange'),
+          onPressed: () => _onButtonTap(context, 'Exchange', exchangeSubtitle),
         ),
         FancifulButton(
           label: 'Sell',
-          icon: Icons.sell, // 🏷️
+          subtitle: sellSubtitle, // Pass subtitle
+          icon: Icons.sell,
           color: Colors.purple,
-          onPressed: () => _onButtonTap('Sell'),
+          onPressed: () => _onButtonTap(context, 'Sell', sellSubtitle),
         ),
       ],
     );
@@ -86,18 +123,21 @@ class ButtonGrid extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------
-// The Custom Button Widget (Smaller + Colored Outline)
+// The Custom Button Widget
 // -----------------------------------------------------------------
 class FancifulButton extends StatelessWidget {
+  // --- MODIFICATION 3: Add 'subtitle' to constructor ---
   const FancifulButton({
     super.key,
     required this.label,
+    required this.subtitle, // Added this
     required this.icon,
     required this.onPressed,
     this.color = Colors.grey,
   });
 
   final String label;
+  final String subtitle; // Added this
   final IconData icon;
   final VoidCallback onPressed;
   final Color color;
@@ -105,54 +145,51 @@ class FancifulButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      // Lighter shadow
       elevation: 1.0,
-      // Rounded corners AND colored outline
       shape: RoundedRectangleBorder(
-        // --- THIS IS THE NEW OUTLINE ---
         side: BorderSide(
-          color: color.withOpacity(0.8), // Use the button's color
+          color: color.withOpacity(0.8),
           width: 2.0,
         ),
-        // ---
-        borderRadius: BorderRadius.circular(8.0), // Slightly smaller radius
+        borderRadius: BorderRadius.circular(8.0),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        // The tap handler
         onTap: onPressed,
-        // The content of the button
         child: Padding(
-          // Reduced padding to make button smaller
           padding: const EdgeInsets.all(8.0),
           child: Column(
-            // Center the content
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(
                 icon,
-                // Reduced icon size
                 size: 32.0,
                 color: color,
               ),
-              // This is the colored underline (now smaller)
               Padding(
-                // Reduced vertical padding
                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                 child: Container(
-                  // Reduced height and width
                   height: 2.0,
                   width: 30.0,
-                  color: color.withOpacity(0.7), // Use the button's color
+                  color: color.withOpacity(0.7),
                 ),
               ),
               Text(
                 label,
                 style: const TextStyle(
-                  // Reduced font size
                   fontSize: 13.0,
                   fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              // --- MODIFICATION 4: Add the Subtitle Text Widget ---
+              const SizedBox(height: 4), // Add a little space
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 10.0, // Make it small
+                  color: Colors.grey[600], // Make it light grey
                 ),
                 textAlign: TextAlign.center,
               ),
