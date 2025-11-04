@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:student_unify_app/Home/widgets/Carousel.dart';
 import 'package:student_unify_app/Home/widgets/HomeContentPage.dart';
 import 'package:student_unify_app/Home/widgets/bottomnavbar.dart';
-import 'package:student_unify_app/Home/widgets/scrolling.dart';
-// Note: Assuming QuoteCarousel and HorizontalItemList are imported correctly
+
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});

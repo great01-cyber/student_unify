@@ -1,7 +1,9 @@
+// lib/pages/onboarding_screen.dart
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:student_unify_app/services/Authwrapper.dart';
 
 import 'AuthPage.dart';
-
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
@@ -14,10 +16,8 @@ class _OnboardPageData {
   final String title;
   final String subtitle;
   final String? imageAsset;
-
-  // IMAGE CUSTOMISATION
-  final double? imageWidth; // null = responsive default
-  final double? imageHeight; // null = responsive default
+  final double? imageWidth;
+  final double? imageHeight;
   final BoxFit? fit;
   final Alignment? alignment;
   final Color? bgColor;
@@ -43,7 +43,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<_OnboardPageData> _pages = const [
     _OnboardPageData(
       title: 'Welcome to Student Unify',
-      subtitle: 'This is the private hub for verified students. Buy, sell, and share securely with a trusted community from universities across the country.',
+      subtitle:
+      'This is the private hub for verified students. Buy, sell, and share securely with a trusted community from universities across the country.',
       imageAsset: "assets/images/university.png",
       imageWidth: 500,
       imageHeight: 500,
@@ -56,7 +57,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'Share Smarter Not Harder',
       subtitle: 'Save & Earn: Buy, sell, and swap textbooks, furniture, and dorm essentials.',
       imageAsset: "assets/images/sharing.png",
-      // Example: make this image wider and crop slightly
       imageWidth: 350,
       imageHeight: 350,
       fit: BoxFit.cover,
@@ -66,7 +66,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     _OnboardPageData(
       title: 'Get Verified to Join',
-      subtitle: 'It all starts with your university email. Verifying your status is fast, secure, and unlocks the entire network.',
+      subtitle:
+      'It all starts with your university email. Verifying your status is fast, secure, and unlocks the entire network.',
       imageAsset: "assets/images/verified.png",
       imageWidth: 500,
       imageHeight: 500,
@@ -90,16 +91,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _skip() {
-    // Navigate immediately when skipping
     _finishOnboarding();
   }
 
-  void _finishOnboarding() {
-    // 2. NAVIGATE TO THE AUTH PAGE
+  Future<void> _finishOnboarding() async {
+    // Save flag so onboarding won't show again
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('seenOnboarding', true);
+
+    // Replace onboarding with AuthWrapper (which will route to AuthPage or Homepage)
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) =>  AuthPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const AuthPage()),
     );
   }
 
@@ -128,7 +131,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Tap to preview full screen with pinch/zoom
   void _openPreview(String asset) {
     showDialog(
       context: context,
@@ -157,11 +159,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Render image container with customisations applied
   Widget _buildImageFor(_OnboardPageData page) {
     final mq = MediaQuery.of(context);
-    final defaultWidth = mq.size.width * 0.55;  // responsive fallback
-    final defaultHeight = mq.size.width * 0.55; // square fallback
+    final defaultWidth = mq.size.width * 0.55;
+    final defaultHeight = mq.size.width * 0.55;
 
     final width = page.imageWidth ?? defaultWidth;
     final height = page.imageHeight ?? defaultHeight;
@@ -221,7 +222,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top action row (Skip)
             Align(
               alignment: Alignment.topRight,
               child: Padding(
@@ -239,8 +239,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
             ),
-
-            // PageView
             Expanded(
               child: PageView.builder(
                 controller: _controller,
@@ -253,7 +251,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // IMAGE (customisable)
                         _buildImageFor(page),
                         const SizedBox(height: 28),
                         Text(
@@ -282,8 +279,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
             ),
-
-            // Dots + Next/Done button
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
               child: Row(
