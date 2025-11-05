@@ -24,28 +24,28 @@ final List<SharedItem> dummyItems = [
     subtitle: "Used condition, barely marked.",
     address: "Anderson Road",
     price: "FREE",
-    imagePath: 'assets/images/verified.png',
+    imagePath: "assets/images/verified.png"
   ),
   SharedItem(
     title: "Noise Cancelling Headset",
     subtitle: "Perfect for library study.",
     address: "Campus Dorm B",
     price: "\$35",
-    imagePath: 'assets/item_headset.jpg',
+    imagePath: "assets/images/verified.png"
   ),
   SharedItem(
     title: "Mini Fridge",
     subtitle: "Great for dorm room snacks.",
     address: "Off-Campus Housing",
     price: "\$60",
-    imagePath: 'assets/item_fridge.jpg',
+    imagePath: "assets/images/verified.png"
   ),
   SharedItem(
     title: "Desk Lamp (LED)",
     subtitle: "Adjustable, 3 light modes.",
     address: "Smith Hall",
     price: "\$10",
-    imagePath: 'assets/item_desk_lamp.jpg',
+    imagePath: "assets/images/verified.png"
   ),
 ];
 // NOTE: Remember to add the image paths (e.g., 'assets/item_calculus.jpg') to your project's assets folder.

@@ -60,7 +60,7 @@ class AuthWrapper extends StatelessWidget {
             if (authSnapshot.hasData && authSnapshot.data != null) {
               // Ensure email is verified before going to the main app (optional security step)
               if (authSnapshot.data!.emailVerified) {
-                return const Homepage();
+                return  Homepage();
               } else {
                 // If not verified, route to a verification check screen or back to AuthPage with a message.
                 // For simplicity, we route to the AuthPage.

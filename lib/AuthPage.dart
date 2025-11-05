@@ -87,7 +87,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
         // 2. Explicit Navigation to HomePage
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const Homepage()),
+            MaterialPageRoute(builder: (context) => Homepage()),
           );
         }
         // NOTE: The AuthWrapper is no longer solely responsible for navigation after login.
@@ -140,7 +140,6 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
       _showSnackbar(errorMessage);
     } catch (e) {
       _showSnackbar('An unexpected error occurred. Please try again.');
-      print('Unexpected error: $e');
     } finally {
       setState(() {
         _isLoading = false;

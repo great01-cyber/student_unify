@@ -39,14 +39,20 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   firebase_core: ^4.2.1
-  firebase_auth: ^6.1.2
+  firebase_auth:
   cloud_firestore: ^6.1.0
   shared_preferences: ^2.5.3
   image_picker: ^1.2.0
   location: ^8.0.1
-  flutter_map: ^8.2.2
-  latlong2: ^0.9.1
+  flutter_map:
+  latlong2:
   intl: ^0.20.2
+  google_maps_flutter: ^2.14.0
+  geocoding: ^4.0.0
+  flutter_google_places_hoc081098: ^2.0.0
+  google_api_headers: ^4.0.3
+  http:
+
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:student_unify_app/Home/community.dart';
 import 'package:student_unify_app/Home/widgets/HomeContentPage.dart';
 import 'package:student_unify_app/Home/widgets/bottomnavbar.dart';
-
-import 'MorePage.dart';
-import 'Morepage.dart' hide Morepage;
+import 'Morepage.dart';
 import 'SearchPage.dart';
 import 'messages.dart';
 
 class Homepage extends StatefulWidget {
-  const Homepage({super.key});
+  Homepage({super.key});
 
   @override
   State<Homepage> createState() => _HomepageState();
@@ -20,7 +18,7 @@ class _HomepageState extends State<Homepage> {
   int _currentIndex = 0;
 
   // List contains only the 4 pages accessible via the body widget.h
-  final List<Widget> _pages = const [
+  final List<Widget> _pages = [
     // Index 0: Home (Maps to BottomNavBar Index 0)
     HomeContentPage(),
 
@@ -42,14 +40,14 @@ class _HomepageState extends State<Homepage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext bc) {
-        return const FractionallySizedBox(
+        return  FractionallySizedBox(
           // 2. Defines the sheet height (95% of screen height)
           heightFactor: 0.55,
           child: ClipRRect(
             // 3. Adds the characteristic rounded top corners of a sheet
             borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
             // 4. Content is your AddItemPage
-            child:  Morepage(),
+            child:MorePage(),
           ),
         );
       },

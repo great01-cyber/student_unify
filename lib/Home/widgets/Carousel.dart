@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-const String imageLamp = 'assets/images/lamp.png';
-const String imageBook = 'assets/textbook_stack.jpg';
-const String imageCommunity = 'assets/community_build.jpg';
-const String imageTools = 'assets/tool_kit.jpg';
-const String imageTreasure = 'assets/campus_treasure.jpg';
-const String imageLibrary = 'assets/library_resource.jpg';
-const String imageSwap = 'assets/swap_save.jpg';
+const String imageLamp = "assets/images/verified.png";
+const String imageBook = "assets/images/verified.png";
+const String imageCommunity = "assets/images/verified.png";
+const String imageTools = "assets/images/verified.png";
+const String imageTreasure = "assets/images/verified.png";
+const String imageLibrary = "assets/images/verified.png";
+const String imageSwap = "assets/images/verified.png";
 
 class QuoteItem {
   final String quote;

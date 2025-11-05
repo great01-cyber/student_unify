@@ -6,14 +6,14 @@ import '../listings/Exchange.dart';
 import '../listings/LendPage.dart';
 import '../listings/Sell.dart';
 
-class Morepage extends StatefulWidget {
-  const Morepage({super.key});
+class MorePage extends StatefulWidget {
+  const MorePage({super.key});
 
   @override
-  State<Morepage> createState() => _MorepageState();
+  State<MorePage> createState() => _MorePageState();
 }
 
-class _MorepageState extends State<Morepage> {
+class _MorePageState extends State<MorePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,7 +45,7 @@ class ButtonGrid extends StatelessWidget {
         pageToNavigateTo = LendPage();
         break;
       case 'Donate':
-        pageToNavigateTo = DonatePage();
+        pageToNavigateTo = Donate(title: 'Donate',);
         break;
       case 'Exchange':
         pageToNavigateTo = ExchangePage();
@@ -54,7 +54,6 @@ class ButtonGrid extends StatelessWidget {
         pageToNavigateTo = SellPage();
         break;
       default:
-        print('$buttonName button tapped!');
         return;
     }
 
