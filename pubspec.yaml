@@ -41,6 +41,7 @@ dev_dependencies:
   firebase_core: ^4.2.1
   firebase_auth:
   cloud_firestore: ^6.1.0
+  firebase_storage: ^13.0.4
   shared_preferences: ^2.5.3
   image_picker: ^1.2.0
   location: ^8.0.1
@@ -95,11 +96,11 @@ flutter:
 fonts:
   - family: Quicksand
     fonts:
-      - asset: assets/font/Quicksand-Regular.ttf
-      - asset: assets/font/Quicksand-Medium.ttf
-      - asset: assets/font/Quicksand-Bold.ttf
-      - asset: assets/font/Quicksand-SemiBold.ttf
-      - asset: assets/font/Quicksand-Light.ttf
+      - asset: assets/fonts/Quicksand-Regular.ttf
+      - asset: assets/fontsQuicksand-Medium.ttf
+      - asset: assets/fonts/Quicksand-Bold.ttf
+      - asset: assets/fonts/Quicksand-SemiBold.ttf
+      - asset: assets/fonts/Quicksand-Light.ttf
   #   - family: Trajan Pro
   #     fonts:
   #       - asset: fonts/TrajanPro.ttf

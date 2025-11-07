@@ -13,6 +13,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 // Persistence
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 class Donate extends StatefulWidget {
   final String title;
 
@@ -46,16 +50,20 @@ class _DonateState extends State<Donate> {
   final _priceController = TextEditingController();
   final _instructionsController = TextEditingController();
 
-  // --- State for Date/Time & Location ---
   DateTime? _availableFrom;
   DateTime? _availableUntil;
 
-  // This will hold the result from the map page (address/postcode)
+  // location
   String? _selectedLocationInfo;
-
-  // If MapSelectionPage returns coordinates, store them and show embedded map
   LatLng? _selectedLatLng;
   GoogleMapController? _locationMapController;
+
+  // Firebase
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  bool _isSubmitting = false;
+
 
   @override
   void initState() {
@@ -71,7 +79,7 @@ class _DonateState extends State<Donate> {
     _priceController.dispose();
     _instructionsController.dispose();
     _locationMapController?.dispose();
-    _kgController?.dispose();
+    _kgController.dispose();
     super.dispose();
   }
 
@@ -119,6 +127,133 @@ class _DonateState extends State<Donate> {
         _locationMapController!.animateCamera(
           CameraUpdate.newLatLngZoom(_selectedLatLng!, 15.0),
         );
+      }
+      // ----------------- Firebase upload + save (auth enforced) -----------------
+      Future<List<String>> _uploadImagesToFirebase(String docId) async {
+        final List<String> urls = [];
+        for (var i = 0; i < _images.length; i++) {
+          final XFile file = _images[i];
+          final String fileName = DateTime.now().millisecondsSinceEpoch.toString() + '_' + file.name;
+          final ref = _storage.ref().child('donations').child(docId).child(fileName);
+          final uploadTask = ref.putFile(File(file.path));
+          final snapshot = await uploadTask.whenComplete(() {});
+          final url = await snapshot.ref.getDownloadURL();
+          urls.add(url);
+        }
+        return urls;
+      }
+
+      Future<void> _persistLocationString(String value) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('saved_pickup_location', value);
+      }
+
+      Future<void> _submitForm() async {
+        if (_isSubmitting) return;
+        if (!_formKey.currentState!.validate()) return;
+
+        // require authenticated user (no extra login UI here)
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text('You must be signed in to post a donation.'), backgroundColor: Colors.red.shade700),
+          );
+          return;
+        }
+
+        if (_images.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text('Please add at least one image.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
+          );
+          return;
+        }
+
+        if (_selectedLocationInfo == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: const Text('Please confirm your location.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
+          );
+          return;
+        }
+
+        setState(() => _isSubmitting = true);
+
+        // show progress
+        showDialog(context: context, barrierDismissible: false, builder: (_) => WillPopScope(onWillPop: () async => false, child: const Center(child: CircularProgressIndicator())));
+
+        try {
+          // try to read extra donor info from your users collection (if present)
+          String? donorName;
+          try {
+            final userDoc = await _firestore.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+              final data = userDoc.data();
+              donorName = (data != null && data['displayName'] != null) ? data['displayName'] as String : user.displayName;
+            } else {
+              donorName = user.displayName;
+            }
+          } catch (e) {
+            donorName = user.displayName;
+          }
+
+          // prepare doc id
+          final String docId = _firestore.collection('donations').doc().id;
+
+          // upload images
+          final imageUrls = await _uploadImagesToFirebase(docId);
+
+          // build donation data with donor info (from auth + users collection)
+          final Map<String, dynamic> donationData = {
+            'category': _selectedCategory ?? 'Unspecified',
+            'title': _titleController.text.trim(),
+            'description': _descController.text.trim(),
+            'price': double.tryParse(_priceController.text),
+            'kg': double.tryParse(_kgController.text),
+            'imageUrls': imageUrls,
+            'availableFrom': _availableFrom?.toIso8601String(),
+            'availableUntil': _availableUntil?.toIso8601String(),
+            'instructions': _instructionsController.text.trim(),
+            'locationAddress': _selectedLocationInfo,
+            'latitude': _selectedLatLng?.latitude,
+            'longitude': _selectedLatLng?.longitude,
+            'createdAt': DateTime.now().toIso8601String(),
+            // donor info:
+            'donorId': user.uid,
+            'donorEmail': user.email,
+            'donorName': donorName,
+            'id': docId,
+          };
+
+          // save to firestore under docId
+          await _firestore.collection('donations').doc(docId).set(donationData);
+
+          // persist location locally
+          final locString = _selectedLatLng != null
+              ? '${_selectedLatLng!.latitude},${_selectedLatLng!.longitude}||${_selectedLocationInfo ?? ''}'
+              : (_selectedLocationInfo ?? '');
+          await _persistLocationString(locString);
+
+          // done
+          Navigator.of(context).pop(); // close progress
+          setState(() => _isSubmitting = false);
+
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Donation submitted!'), backgroundColor: Colors.green.shade700));
+
+          // clear form (keeps location persisted)
+          setState(() {
+            _images.clear();
+            _selectedCategory = null;
+            _titleController.clear();
+            _descController.clear();
+            _priceController.clear();
+            _kgController.clear();
+            _instructionsController.clear();
+          });
+        } catch (e, st) {
+          Navigator.of(context).pop(); // close progress
+          setState(() => _isSubmitting = false);
+          debugPrint('Upload/save error: $e\n$st');
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to submit donation: $e'), backgroundColor: Colors.red.shade700));
+        }
       }
     } catch (e) {
       debugPrint('Failed to load saved location: $e');
@@ -237,7 +372,7 @@ class _DonateState extends State<Donate> {
                   decoration: _fancifulDecoration("Estimated Price (£)", Icons.attach_money),
                   validator: (val) => val!.isEmpty ? "Please enter a price" : null,
                 ),
-                Text("This is how much you will be saving a student.", style: TextStyle(fontSize: 8, ),),
+                Text("This is how much you will be saving the environment.", style: TextStyle(fontSize: 8, fontFamily: 'Quicksand',fontWeight: FontWeight.w100, color: Colors.black),),
                 const SizedBox(height: 24),
 
                 // --- Description Field ---
@@ -249,7 +384,7 @@ class _DonateState extends State<Donate> {
                       .copyWith(alignLabelWithHint: true),
                   //validator: (val) => val!.isEmpty ? "Please enter a description" : null,
                 ),
-                Text("This is how much you will be saving the environment.", style: TextStyle(fontSize: 8, ),),
+                Text("This is how much you will be saving the environment.", style: TextStyle(fontSize: 8, fontFamily: 'Quicksand',fontWeight: FontWeight.w100 ),),
                 const SizedBox(height: 16),
 
                 // --- Image Uploader (Existing Code) ---
