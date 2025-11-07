@@ -1,9 +1,14 @@
+// donate.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+// map selection page (should be returning either "lat,lng||address" or fallback address string)
 import '../services/MapSelectionPage.dart';
+
+// Required for embedded map preview
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class Donate extends StatefulWidget {
   final String title;
@@ -32,7 +37,13 @@ class _DonateState extends State<Donate> {
   // --- State for Date/Time & Location ---
   DateTime? _availableFrom;
   DateTime? _availableUntil;
-  String? _selectedLocationInfo; // This will hold the result from the map page
+
+  // This will hold the result from the map page (address/postcode)
+  String? _selectedLocationInfo;
+
+  // If MapSelectionPage returns coordinates, store them and show embedded map
+  LatLng? _selectedLatLng;
+  GoogleMapController? _locationMapController;
 
   @override
   void dispose() {
@@ -41,16 +52,16 @@ class _DonateState extends State<Donate> {
     _descController.dispose();
     _priceController.dispose();
     _instructionsController.dispose();
+    _locationMapController?.dispose();
     super.dispose();
   }
 
   // --- Text Style Helpers ---
-  // Using Quicksand font as requested
   static const TextStyle _labelStyle = TextStyle(
     fontFamily: 'Quicksand',
     fontWeight: FontWeight.w600,
     fontSize: 16,
-    color: Colors.deepPurple,
+    color: Colors.teal,
   );
   static const TextStyle _inputStyle = TextStyle(
     fontFamily: 'Quicksand',
@@ -68,15 +79,15 @@ class _DonateState extends State<Donate> {
     return InputDecoration(
       labelText: label,
       labelStyle: _hintStyle,
-      prefixIcon: Icon(icon, color: Colors.purple.shade300),
+      prefixIcon: Icon(icon, color: Colors.teal.shade300),
       contentPadding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 10.0),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.purple.shade200, width: 1.5),
+        borderSide: BorderSide(color: Colors.teal.shade200, width: 1.5),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.deepPurple, width: 2.0),
+        borderSide: const BorderSide(color: Colors.teal, width: 2.0),
       ),
     );
   }
@@ -89,10 +100,10 @@ class _DonateState extends State<Donate> {
           widget.title,
           style: const TextStyle(fontFamily: 'Quicksand', fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.blueGrey,
+        backgroundColor: Colors.teal.shade800,
+        foregroundColor: Colors.white,
       ),
-      backgroundColor: Colors.grey[50],
-      // Use SingleChildScrollView to prevent overflow
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -100,7 +111,7 @@ class _DonateState extends State<Donate> {
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch, // Fields stretch
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // --- Title Field ---
                 _buildSectionHeader("Item Details"),
@@ -118,7 +129,7 @@ class _DonateState extends State<Donate> {
                   style: _inputStyle,
                   maxLines: 4,
                   decoration: _fancifulDecoration("Description", Icons.description)
-                      .copyWith(alignLabelWithHint: true), // For multi-line
+                      .copyWith(alignLabelWithHint: true),
                   validator: (val) => val!.isEmpty ? "Please enter a description" : null,
                 ),
                 const SizedBox(height: 16),
@@ -127,7 +138,7 @@ class _DonateState extends State<Donate> {
                 TextFormField(
                   controller: _priceController,
                   style: _inputStyle,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: _fancifulDecoration("Estimated Price (£)", Icons.attach_money),
                   validator: (val) => val!.isEmpty ? "Please enter a price" : null,
                 ),
@@ -177,7 +188,7 @@ class _DonateState extends State<Donate> {
                 ElevatedButton.icon(
                   onPressed: _submitForm,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
+                    backgroundColor: Colors.teal.shade700,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
@@ -207,7 +218,6 @@ class _DonateState extends State<Donate> {
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      // Aligning to the right as requested
       child: Text(
         title,
         style: _labelStyle,
@@ -253,50 +263,169 @@ class _DonateState extends State<Donate> {
     );
   }
 
-  // --- Helper for Location Selector Button ---
+  // --- Helper for Location Selector Button / Map Preview ---
   Widget _buildLocationSelector(BuildContext context) {
-    return InkWell(
-      onTap: () async {
-        // --- THIS IS WHERE WE NAVIGATE TO THE MAP ---
-        final result = await Navigator.push<String>(
-          context,
-          MaterialPageRoute(builder: (context) => const MapSelectionPage()),
-        );
-
-        // --- HERE WE RECEIVE THE RESULT ---
-        if (result != null) {
-          setState(() {
-            _selectedLocationInfo = result;
-          });
-        }
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
+    // If we have coordinates, show embedded map preview
+    if (_selectedLatLng != null) {
+      return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(16.0),
+        height: 180,
+        padding: const EdgeInsets.all(8.0),
         decoration: BoxDecoration(
-          color: Colors.purple.shade50,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Colors.black12,
+            color: Colors.teal.shade200,
             style: BorderStyle.solid,
             width: 2,
           ),
         ),
         child: Column(
           children: [
-            Icon(Icons.location_on, color: Colors.deepPurple, size: 30),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _selectedLatLng!,
+                    zoom: 15,
+                  ),
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('donation_location'),
+                      position: _selectedLatLng!,
+                    )
+                  },
+                  onMapCreated: (controller) {
+                    _locationMapController = controller;
+                  },
+                  myLocationEnabled: false,
+                  zoomControlsEnabled: false,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _selectedLocationInfo ?? '',
+                    style: _inputStyle.copyWith(color: Colors.teal.shade700),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    // Allow user to re-open the map selection and edit
+                    final result = await Navigator.push<String>(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MapSelectionPage()),
+                    );
+                    _handleMapResult(result);
+                  },
+                  icon: const Icon(Icons.edit_location, color: Colors.teal),
+                  label: const Text("Change", style: TextStyle(color: Colors.teal)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Default (no coordinates): show tappable card (same look as before)
+    return InkWell(
+      onTap: () async {
+        // Navigate to the map page. Prefer MapSelectionPage to return:
+        // - "lat,lng||address" (recommended), OR
+        // - "lat,lng" OR
+        // - "address string"
+        final result = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(builder: (context) => const MapSelectionPage()),
+        );
+
+        _handleMapResult(result);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.teal.shade200,
+            style: BorderStyle.solid,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.location_on, color: Colors.teal.shade700, size: 30),
             const SizedBox(height: 8),
             Text(
-              // Show the selected location or a prompt
               _selectedLocationInfo ?? "Click to set pickup location",
-              style: _inputStyle.copyWith(color: Colors.deepPurple),
+              style: _inputStyle.copyWith(color: Colors.teal.shade700),
               textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
     );
+  }
+
+  // --- Parse / Handle result returned from MapSelectionPage ---
+  void _handleMapResult(String? result) {
+    if (result == null) return;
+
+    // Reset existing map state
+    LatLng? newLatLng;
+    String? info;
+
+    try {
+      if (result.contains('||')) {
+        // Format: "lat,lng||address"
+        final parts = result.split('||');
+        final coords = parts[0];
+        info = parts.length > 1 ? parts[1] : null;
+
+        final nums = coords.split(',');
+        final lat = double.tryParse(nums[0]);
+        final lng = double.tryParse(nums[1]);
+        if (lat != null && lng != null) {
+          newLatLng = LatLng(lat, lng);
+        }
+      } else if (result.contains(',')) {
+        // Maybe just "lat,lng"
+        final nums = result.split(',');
+        final lat = double.tryParse(nums[0]);
+        final lng = double.tryParse(nums[1]);
+        if (lat != null && lng != null) {
+          newLatLng = LatLng(lat, lng);
+        } else {
+          // Not parsable as coords, treat as address
+          info = result;
+        }
+      } else {
+        // Plain address/postcode string
+        info = result;
+      }
+    } catch (_) {
+      // Fallback: treat everything as text
+      info = result;
+    }
+
+    setState(() {
+      _selectedLatLng = newLatLng;
+      _selectedLocationInfo = info ?? result;
+      // Optionally, move embedded map camera if exists
+      if (_selectedLatLng != null && _locationMapController != null) {
+        _locationMapController!.animateCamera(
+          CameraUpdate.newLatLngZoom(_selectedLatLng!, 15.0),
+        );
+      }
+    });
   }
 
   // --- Function to handle Date & Time picking ---
@@ -308,14 +437,14 @@ class _DonateState extends State<Donate> {
       lastDate: DateTime(2100),
     );
 
-    if (date == null) return; // User cancelled
+    if (date == null) return;
 
     final TimeOfDay? time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
-    if (time == null) return; // User cancelled
+    if (time == null) return;
 
     final fullDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
 
@@ -330,25 +459,22 @@ class _DonateState extends State<Donate> {
 
   // --- Form Submission Logic ---
   void _submitForm() {
-    // Validate all fields
     if (_formKey.currentState!.validate()) {
-      // Check if at least one image is added
       if (_images.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please add at least one image.', style: TextStyle(fontFamily: 'Quicksand')),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('Please add at least one image.', style: TextStyle(fontFamily: 'Quicksand')),
+            backgroundColor: Colors.red.shade700,
           ),
         );
         return;
       }
 
-      // Check if location is set
       if (_selectedLocationInfo == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please confirm your location.', style: TextStyle(fontFamily: 'Quicksand')),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('Please confirm your location.', style: TextStyle(fontFamily: 'Quicksand')),
+            backgroundColor: Colors.red.shade700,
           ),
         );
         return;
@@ -363,17 +489,14 @@ class _DonateState extends State<Donate> {
       print("Available From: $_availableFrom");
       print("Available Until: $_availableUntil");
       print("Instructions: ${_instructionsController.text}");
-      print("Location: $_selectedLocationInfo");
+      print("Location: $_selectedLocationInfo (coords: $_selectedLatLng)");
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Donation submitted! (Check console)', style: TextStyle(fontFamily: 'Quicksand')),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: const Text('Donation submitted! (Check console)', style: TextStyle(fontFamily: 'Quicksand')),
+          backgroundColor: Colors.green.shade700,
         ),
       );
-
-      // You could pop the page or clear the form here
-      // Navigator.pop(context);
     }
   }
 
@@ -428,10 +551,10 @@ class _DonateState extends State<Donate> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.purple.shade200, width: 2),
+        border: Border.all(color: Colors.teal.shade200, width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.purple.shade50.withOpacity(0.5),
+            color: Colors.teal.shade50.withOpacity(0.5),
             spreadRadius: 2,
             blurRadius: 8,
             offset: const Offset(0, 4),
@@ -442,7 +565,7 @@ class _DonateState extends State<Donate> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, // Changed to 3 to fit more
+          crossAxisCount: 3,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
         ),
@@ -461,7 +584,7 @@ class _DonateState extends State<Donate> {
   }
 }
 
-// --- Image Uploader Helper Widgets (No Changes) ---
+// --- Image Uploader Helper Widgets ---
 class AddImageButton extends StatelessWidget {
   final VoidCallback onPressed;
   const AddImageButton({super.key, required this.onPressed});
@@ -473,10 +596,10 @@ class AddImageButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.purple.shade50,
+          color: Colors.teal.shade50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: Colors.purple.shade200,
+            color: Colors.teal.shade200,
             style: BorderStyle.solid,
             width: 1.5,
           ),
@@ -484,7 +607,7 @@ class AddImageButton extends StatelessWidget {
         child: Center(
           child: Icon(
             Icons.add_a_photo_outlined,
-            color: Colors.purple.shade400,
+            color: Colors.teal.shade400,
             size: 30,
           ),
         ),
@@ -514,7 +637,7 @@ class ImageTile extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.shade300,
+                  color: Colors.teal.shade400,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 1.5),
                 ),
