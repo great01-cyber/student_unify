@@ -10,6 +10,9 @@ import '../services/MapSelectionPage.dart';
 // Required for embedded map preview
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+// Persistence
+import 'package:shared_preferences/shared_preferences.dart';
+
 class Donate extends StatefulWidget {
   final String title;
 
@@ -29,7 +32,16 @@ class _DonateState extends State<Donate> {
   final ImagePicker _picker = ImagePicker();
 
   // --- Controllers for Text Fields ---
+  final List<String> _category= const [
+    "Free Academic and study materials",
+    "Sport and Leisure",
+    "Clothing and Accessories",
+    "Dorm and Living essentials",
+    "Free Tech and Electronics",
+  ];
+  String? _selectedCategory;
   final _titleController = TextEditingController();
+  final _kgController = TextEditingController();
   final _descController = TextEditingController();
   final _priceController = TextEditingController();
   final _instructionsController = TextEditingController();
@@ -46,6 +58,12 @@ class _DonateState extends State<Donate> {
   GoogleMapController? _locationMapController;
 
   @override
+  void initState() {
+    super.initState();
+    _loadSavedLocation();
+  }
+
+  @override
   void dispose() {
     // Clean up controllers
     _titleController.dispose();
@@ -53,7 +71,58 @@ class _DonateState extends State<Donate> {
     _priceController.dispose();
     _instructionsController.dispose();
     _locationMapController?.dispose();
+    _kgController?.dispose();
     super.dispose();
+  }
+
+  // --- Load saved location from shared_preferences (format: "lat,lng||address") ---
+  Future<void> _loadSavedLocation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('saved_pickup_location');
+      if (saved == null) return;
+
+      LatLng? newLatLng;
+      String? info;
+
+      if (saved.contains('||')) {
+        final parts = saved.split('||');
+        final coords = parts[0];
+        info = parts.length > 1 ? parts[1] : null;
+
+        final nums = coords.split(',');
+        final lat = double.tryParse(nums[0]);
+        final lng = double.tryParse(nums[1]);
+        if (lat != null && lng != null) {
+          newLatLng = LatLng(lat, lng);
+        }
+      } else if (saved.contains(',')) {
+        final nums = saved.split(',');
+        final lat = double.tryParse(nums[0]);
+        final lng = double.tryParse(nums[1]);
+        if (lat != null && lng != null) {
+          newLatLng = LatLng(lat, lng);
+        } else {
+          info = saved;
+        }
+      } else {
+        info = saved;
+      }
+
+      setState(() {
+        _selectedLatLng = newLatLng;
+        _selectedLocationInfo = info ?? saved;
+      });
+
+      // animate embedded map controller if present
+      if (_selectedLatLng != null && _locationMapController != null) {
+        _locationMapController!.animateCamera(
+          CameraUpdate.newLatLngZoom(_selectedLatLng!, 15.0),
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to load saved location: $e');
+    }
   }
 
   // --- Text Style Helpers ---
@@ -118,8 +187,34 @@ class _DonateState extends State<Donate> {
                 TextFormField(
                   controller: _titleController,
                   style: _inputStyle,
-                  decoration: _fancifulDecoration("Title", Icons.title),
+                  decoration: _fancifulDecoration("Please enter the name of the item you are given out.", Icons.title),
                   validator: (val) => val!.isEmpty ? "Please enter a title" : null,
+                ),
+                const SizedBox(height: 16),
+
+                // --- Category Field ---
+                _buildSectionHeader("Item Category"),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  style: _inputStyle.copyWith(color: Colors.black),
+                  decoration: _fancifulDecoration("Select a category", Icons.category),
+                  hint: Text(
+                    "Select a Category",
+                    style: _hintStyle,
+                  ),
+                  isExpanded: true,
+                  items: _category.map((String category) {
+                    return DropdownMenuItem<String>(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedCategory = newValue;
+                    });
+                  },
+                  validator: (val) => val == null || val.isEmpty ? "Please select a category" : null,
                 ),
                 const SizedBox(height: 16),
 
@@ -142,7 +237,20 @@ class _DonateState extends State<Donate> {
                   decoration: _fancifulDecoration("Estimated Price (£)", Icons.attach_money),
                   validator: (val) => val!.isEmpty ? "Please enter a price" : null,
                 ),
+                Text("This is how much you will be saving a student.", style: TextStyle(fontSize: 8, ),),
                 const SizedBox(height: 24),
+
+                // --- Description Field ---
+                TextFormField(
+                  controller: _kgController,
+                  style: _inputStyle,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: _fancifulDecoration("Estimated Kg", Icons.description)
+                      .copyWith(alignLabelWithHint: true),
+                  //validator: (val) => val!.isEmpty ? "Please enter a description" : null,
+                ),
+                Text("This is how much you will be saving the environment.", style: TextStyle(fontSize: 8, ),),
+                const SizedBox(height: 16),
 
                 // --- Image Uploader (Existing Code) ---
                 _buildSectionHeader("Add Photos (up to 5)"),
