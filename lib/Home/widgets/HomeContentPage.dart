@@ -70,17 +70,17 @@ class HomeContentPage extends StatelessWidget {
           child: SingleChildScrollView(
             child: Column(
               children: const [
-                HorizontalItemList(),
+                HorizontalItemList(categoryTitle: 'Free Academic and Study Materials',),
                 SizedBox(height: 16),
-                HorizontalItemList(),
+                HorizontalItemList(categoryTitle: 'Sport and Leisure Wears',),
                 SizedBox(height: 16),
-                HorizontalItemList(),
+                HorizontalItemList(categoryTitle: 'Free Tech and Electronics',),
                 SizedBox(height: 16),
-                HorizontalItemList(),
+                HorizontalItemList(categoryTitle: 'Free clothing and wears',),
                 SizedBox(height: 16),
-                HorizontalItemList(),
+                HorizontalItemList(categoryTitle: 'Dorm and Essential things',),
                 SizedBox(height: 16),
-                HorizontalItemList(),
+                HorizontalItemList(categoryTitle: 'Others',),
                 SizedBox(height: 32),
               ],
             ),

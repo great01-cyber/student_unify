@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 // map selection page (should be returning either "lat,lng||address" or fallback address string)
+import '../Models/DonateModel.dart';
 import '../services/MapSelectionPage.dart';
 
 // Required for embedded map preview
@@ -13,9 +14,12 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 // Persistence
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Firebase imports
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+// 🎯 Ensure this path matches where you saved your Donation model
 
 class Donate extends StatefulWidget {
   final String title;
@@ -35,13 +39,14 @@ class _DonateState extends State<Donate> {
   final List<XFile> _images = [];
   final ImagePicker _picker = ImagePicker();
 
-  // --- Controllers for Text Fields ---
-  final List<String> _category= const [
-    "Free Academic and study materials",
-    "Sport and Leisure",
-    "Clothing and Accessories",
-    "Dorm and Living essentials",
-    "Free Tech and Electronics",
+  // --- Controllers and Category State ---
+  final List<String> _category = const [
+    'Free Academic and Study Materials',
+    'Sport and Leisure Wears',
+    'Free Tech and Electronics',
+    'Free clothing and wears',
+    'Dorm and Essential things',
+    'Others',
   ];
   String? _selectedCategory;
   final _titleController = TextEditingController();
@@ -63,7 +68,6 @@ class _DonateState extends State<Donate> {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
   bool _isSubmitting = false;
-
 
   @override
   void initState() {
@@ -128,139 +132,148 @@ class _DonateState extends State<Donate> {
           CameraUpdate.newLatLngZoom(_selectedLatLng!, 15.0),
         );
       }
-      // ----------------- Firebase upload + save (auth enforced) -----------------
-      Future<List<String>> _uploadImagesToFirebase(String docId) async {
-        final List<String> urls = [];
-        for (var i = 0; i < _images.length; i++) {
-          final XFile file = _images[i];
-          final String fileName = DateTime.now().millisecondsSinceEpoch.toString() + '_' + file.name;
-          final ref = _storage.ref().child('donations').child(docId).child(fileName);
-          final uploadTask = ref.putFile(File(file.path));
-          final snapshot = await uploadTask.whenComplete(() {});
-          final url = await snapshot.ref.getDownloadURL();
-          urls.add(url);
-        }
-        return urls;
-      }
-
-      Future<void> _persistLocationString(String value) async {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('saved_pickup_location', value);
-      }
-
-      Future<void> _submitForm() async {
-        if (_isSubmitting) return;
-        if (!_formKey.currentState!.validate()) return;
-
-        // require authenticated user (no extra login UI here)
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: const Text('You must be signed in to post a donation.'), backgroundColor: Colors.red.shade700),
-          );
-          return;
-        }
-
-        if (_images.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: const Text('Please add at least one image.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
-          );
-          return;
-        }
-
-        if (_selectedLocationInfo == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: const Text('Please confirm your location.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
-          );
-          return;
-        }
-
-        setState(() => _isSubmitting = true);
-
-        // show progress
-        showDialog(context: context, barrierDismissible: false, builder: (_) => WillPopScope(onWillPop: () async => false, child: const Center(child: CircularProgressIndicator())));
-
-        try {
-          // try to read extra donor info from your users collection (if present)
-          String? donorName;
-          try {
-            final userDoc = await _firestore.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-              final data = userDoc.data();
-              donorName = (data != null && data['displayName'] != null) ? data['displayName'] as String : user.displayName;
-            } else {
-              donorName = user.displayName;
-            }
-          } catch (e) {
-            donorName = user.displayName;
-          }
-
-          // prepare doc id
-          final String docId = _firestore.collection('donations').doc().id;
-
-          // upload images
-          final imageUrls = await _uploadImagesToFirebase(docId);
-
-          // build donation data with donor info (from auth + users collection)
-          final Map<String, dynamic> donationData = {
-            'category': _selectedCategory ?? 'Unspecified',
-            'title': _titleController.text.trim(),
-            'description': _descController.text.trim(),
-            'price': double.tryParse(_priceController.text),
-            'kg': double.tryParse(_kgController.text),
-            'imageUrls': imageUrls,
-            'availableFrom': _availableFrom?.toIso8601String(),
-            'availableUntil': _availableUntil?.toIso8601String(),
-            'instructions': _instructionsController.text.trim(),
-            'locationAddress': _selectedLocationInfo,
-            'latitude': _selectedLatLng?.latitude,
-            'longitude': _selectedLatLng?.longitude,
-            'createdAt': DateTime.now().toIso8601String(),
-            // donor info:
-            'donorId': user.uid,
-            'donorEmail': user.email,
-            'donorName': donorName,
-            'id': docId,
-          };
-
-          // save to firestore under docId
-          await _firestore.collection('donations').doc(docId).set(donationData);
-
-          // persist location locally
-          final locString = _selectedLatLng != null
-              ? '${_selectedLatLng!.latitude},${_selectedLatLng!.longitude}||${_selectedLocationInfo ?? ''}'
-              : (_selectedLocationInfo ?? '');
-          await _persistLocationString(locString);
-
-          // done
-          Navigator.of(context).pop(); // close progress
-          setState(() => _isSubmitting = false);
-
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Donation submitted!'), backgroundColor: Colors.green.shade700));
-
-          // clear form (keeps location persisted)
-          setState(() {
-            _images.clear();
-            _selectedCategory = null;
-            _titleController.clear();
-            _descController.clear();
-            _priceController.clear();
-            _kgController.clear();
-            _instructionsController.clear();
-          });
-        } catch (e, st) {
-          Navigator.of(context).pop(); // close progress
-          setState(() => _isSubmitting = false);
-          debugPrint('Upload/save error: $e\n$st');
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to submit donation: $e'), backgroundColor: Colors.red.shade700));
-        }
-      }
     } catch (e) {
       debugPrint('Failed to load saved location: $e');
     }
   }
 
-  // --- Text Style Helpers ---
+  // --- Firebase Storage and Location Persistence Helpers ---
+
+  Future<List<String>> _uploadImagesToFirebase(String docId) async {
+    final List<String> urls = [];
+    for (var i = 0; i < _images.length; i++) {
+      final XFile file = _images[i];
+      final String fileName = DateTime.now().millisecondsSinceEpoch.toString() + '_' + file.name;
+      final ref = _storage.ref().child('donations').child(docId).child(fileName);
+
+      // Use putData for safer, platform-independent file upload
+      final uploadTask = ref.putData(await file.readAsBytes());
+      final snapshot = await uploadTask.whenComplete(() {});
+      final url = await snapshot.ref.getDownloadURL();
+      urls.add(url);
+    }
+    return urls;
+  }
+
+  Future<void> _persistLocationString(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('saved_pickup_location', value);
+  }
+
+  // --- Form Submission Logic (Primary Action) ---
+  Future<void> _submitForm() async {
+    if (_isSubmitting) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('You must be signed in to post a donation.'), backgroundColor: Colors.red.shade700),
+      );
+      return;
+    }
+
+    if (_images.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Please add at least one image.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
+      );
+      return;
+    }
+
+    if (_selectedLocationInfo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Please confirm your location.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    // show progress
+    showDialog(context: context, barrierDismissible: false, builder: (_) => WillPopScope(onWillPop: () async => false, child: const Center(child: CircularProgressIndicator())));
+
+    try {
+      // 1. Get donor info (optional, but good practice)
+      String? donorName = user.displayName;
+      try {
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          donorName = userDoc.data()?['displayName'] as String? ?? user.displayName;
+        }
+      } catch (e) {
+        // Fallback to Firebase Auth display name
+      }
+
+      // 2. Prepare Firestore document ID
+      final String docId = _firestore.collection('donations').doc().id;
+
+      // 3. Upload images
+      final imageUrls = await _uploadImagesToFirebase(docId);
+
+      // 4. Create Donation Model Instance (using the clean data structure)
+      final newDonation = Donation(
+        id: docId,
+        category: _selectedCategory ?? 'Unspecified',
+        title: _titleController.text.trim(),
+        description: _descController.text.trim(),
+        price: double.tryParse(_priceController.text),
+        kg: double.tryParse(_kgController.text),
+        imageUrls: imageUrls,
+        availableFrom: _availableFrom,
+        availableUntil: _availableUntil,
+        instructions: _instructionsController.text.trim(),
+        locationAddress: _selectedLocationInfo,
+        latitude: _selectedLatLng?.latitude,
+        longitude: _selectedLatLng?.longitude,
+      );
+
+      // 5. Convert model to Firestore-ready map (using toJson/toMap)
+      final Map<String, dynamic> donationData = newDonation.toJson();
+
+      // 6. Add donor metadata which isn't part of the core Donation model
+      donationData['donorId'] = user.uid;
+      donationData['donorEmail'] = user.email;
+      donationData['donorName'] = donorName;
+
+      // 7. Save to Firestore
+      await _firestore.collection('donations').doc(docId).set(donationData);
+
+      // 8. Persist location locally
+      final locString = _selectedLatLng != null
+          ? '${_selectedLatLng!.latitude},${_selectedLatLng!.longitude}||${_selectedLocationInfo ?? ''}'
+          : (_selectedLocationInfo ?? '');
+      await _persistLocationString(locString);
+
+      // 9. Done
+      Navigator.of(context).pop(); // close progress
+      setState(() => _isSubmitting = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Donation submitted!'), backgroundColor: Colors.green.shade700));
+
+      // clear form
+      setState(() {
+        _images.clear();
+        _selectedCategory = null;
+        _titleController.clear();
+        _descController.clear();
+        _priceController.clear();
+        _kgController.clear();
+        _instructionsController.clear();
+      });
+    } catch (e, st) {
+      Navigator.of(context).pop(); // close progress
+      setState(() => _isSubmitting = false);
+      debugPrint('Upload/save error: $e\n$st');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to submit donation: $e'), backgroundColor: Colors.red.shade700));
+    }
+  }
+
+  // --- Color and Style Constants (Teal & Amber Scheme) ---
+  static final Color _primaryColor = Colors.teal.shade700;
+  static final Color _accentColor = Colors.teal.shade300;
+  static final Color _headerColor = Colors.teal.shade800;
+  static final Color _locationBgColor = Colors.amber.shade50;
+  static final Color _locationConfirmedBgColor = Colors.teal.shade50;
+
   static const TextStyle _labelStyle = TextStyle(
     fontFamily: 'Quicksand',
     fontWeight: FontWeight.w600,
@@ -283,7 +296,7 @@ class _DonateState extends State<Donate> {
     return InputDecoration(
       labelText: label,
       labelStyle: _hintStyle,
-      prefixIcon: Icon(icon, color: Colors.teal.shade300),
+      prefixIcon: Icon(icon, color: _accentColor),
       contentPadding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 10.0),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -291,7 +304,7 @@ class _DonateState extends State<Donate> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.teal, width: 2.0),
+        borderSide: BorderSide(color: _primaryColor, width: 2.0),
       ),
     );
   }
@@ -304,7 +317,7 @@ class _DonateState extends State<Donate> {
           widget.title,
           style: const TextStyle(fontFamily: 'Quicksand', fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.teal.shade800,
+        backgroundColor: _headerColor,
         foregroundColor: Colors.white,
       ),
       backgroundColor: Colors.white,
@@ -317,17 +330,7 @@ class _DonateState extends State<Donate> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // --- Title Field ---
-                _buildSectionHeader("Item Details"),
-                TextFormField(
-                  controller: _titleController,
-                  style: _inputStyle,
-                  decoration: _fancifulDecoration("Please enter the name of the item you are given out.", Icons.title),
-                  validator: (val) => val!.isEmpty ? "Please enter a title" : null,
-                ),
-                const SizedBox(height: 16),
-
-                // --- Category Field ---
+                // --- Category Field (Dropdown) ---
                 _buildSectionHeader("Item Category"),
                 DropdownButtonFormField<String>(
                   value: _selectedCategory,
@@ -353,6 +356,16 @@ class _DonateState extends State<Donate> {
                 ),
                 const SizedBox(height: 16),
 
+                // --- Title Field (Detailed Name) ---
+                _buildSectionHeader("Item Name"),
+                TextFormField(
+                  controller: _titleController,
+                  style: _inputStyle,
+                  decoration: _fancifulDecoration("Enter the specific item name", Icons.title),
+                  validator: (val) => val!.isEmpty ? "Please enter a detailed item name" : null,
+                ),
+                const SizedBox(height: 16),
+
                 // --- Description Field ---
                 TextFormField(
                   controller: _descController,
@@ -375,14 +388,14 @@ class _DonateState extends State<Donate> {
                 Text("This is how much you will be saving the environment.", style: TextStyle(fontSize: 8, fontFamily: 'Quicksand',fontWeight: FontWeight.w100, color: Colors.black),),
                 const SizedBox(height: 24),
 
-                // --- Description Field ---
+                // --- Estimated Kg Field ---
                 TextFormField(
                   controller: _kgController,
                   style: _inputStyle,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: _fancifulDecoration("Estimated Kg", Icons.description)
+                  decoration: _fancifulDecoration("Estimated Kg (Optional)", Icons.scale)
                       .copyWith(alignLabelWithHint: true),
-                  //validator: (val) => val!.isEmpty ? "Please enter a description" : null,
+                  // validator is optional as it is not required
                 ),
                 Text("This is how much you will be saving the environment.", style: TextStyle(fontSize: 8, fontFamily: 'Quicksand',fontWeight: FontWeight.w100 ),),
                 const SizedBox(height: 16),
@@ -429,19 +442,22 @@ class _DonateState extends State<Donate> {
 
                 // --- Submit Button ---
                 ElevatedButton.icon(
-                  onPressed: _submitForm,
+                  onPressed: _isSubmitting ? null : _submitForm, // Disable when submitting
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal.shade700,
+                    backgroundColor: _primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
                     elevation: 5,
+                    disabledBackgroundColor: Colors.grey, // Visual feedback for disabled state
                   ),
-                  icon: const Icon(Icons.send, color: Colors.white),
-                  label: const Text(
-                    'Donate Now',
-                    style: TextStyle(
+                  icon: _isSubmitting
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.send, color: Colors.white),
+                  label: Text(
+                    _isSubmitting ? 'Submitting...' : 'Donate Now',
+                    style: const TextStyle(
                       fontFamily: 'Quicksand',
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -515,7 +531,7 @@ class _DonateState extends State<Donate> {
         height: 180,
         padding: const EdgeInsets.all(8.0),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _locationConfirmedBgColor, // Use confirmed color
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: Colors.teal.shade200,
@@ -544,6 +560,8 @@ class _DonateState extends State<Donate> {
                   },
                   myLocationEnabled: false,
                   zoomControlsEnabled: false,
+                  // Disable map interactions to make it a static preview
+                  gestureRecognizers: {},
                 ),
               ),
             ),
@@ -552,8 +570,8 @@ class _DonateState extends State<Donate> {
               children: [
                 Expanded(
                   child: Text(
-                    _selectedLocationInfo ?? '',
-                    style: _inputStyle.copyWith(color: Colors.teal.shade700),
+                    _selectedLocationInfo ?? 'Location Confirmed',
+                    style: _inputStyle.copyWith(color: Colors.teal.shade700, fontWeight: FontWeight.bold),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -567,7 +585,7 @@ class _DonateState extends State<Donate> {
                     _handleMapResult(result);
                   },
                   icon: const Icon(Icons.edit_location, color: Colors.teal),
-                  label: const Text("Change", style: TextStyle(color: Colors.teal)),
+                  label: const Text("Change", style: TextStyle(color: Colors.teal, fontFamily: 'Quicksand')),
                 ),
               ],
             ),
@@ -576,13 +594,9 @@ class _DonateState extends State<Donate> {
       );
     }
 
-    // Default (no coordinates): show tappable card (same look as before)
+    // Default (no coordinates): show tappable card
     return InkWell(
       onTap: () async {
-        // Navigate to the map page. Prefer MapSelectionPage to return:
-        // - "lat,lng||address" (recommended), OR
-        // - "lat,lng" OR
-        // - "address string"
         final result = await Navigator.push<String>(
           context,
           MaterialPageRoute(builder: (context) => const MapSelectionPage()),
@@ -595,7 +609,7 @@ class _DonateState extends State<Donate> {
         width: double.infinity,
         padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
-          color: Colors.amber.shade50,
+          color: _locationBgColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: Colors.teal.shade200,
@@ -700,49 +714,6 @@ class _DonateState extends State<Donate> {
     });
   }
 
-  // --- Form Submission Logic ---
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      if (_images.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please add at least one image.', style: TextStyle(fontFamily: 'Quicksand')),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-        return;
-      }
-
-      if (_selectedLocationInfo == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please confirm your location.', style: TextStyle(fontFamily: 'Quicksand')),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-        return;
-      }
-
-      // If all checks pass:
-      print("--- DONATION FORM DATA ---");
-      print("Title: ${_titleController.text}");
-      print("Description: ${_descController.text}");
-      print("Price: ${_priceController.text}");
-      print("Images: ${_images.length} images");
-      print("Available From: $_availableFrom");
-      print("Available Until: $_availableUntil");
-      print("Instructions: ${_instructionsController.text}");
-      print("Location: $_selectedLocationInfo (coords: $_selectedLatLng)");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Donation submitted! (Check console)', style: TextStyle(fontFamily: 'Quicksand')),
-          backgroundColor: Colors.green.shade700,
-        ),
-      );
-    }
-  }
-
   // --- Image Picker Logic (Functions) ---
   void _showImagePickerSheet() {
     showModalBottomSheet(
@@ -827,7 +798,7 @@ class _DonateState extends State<Donate> {
   }
 }
 
-// --- Image Uploader Helper Widgets ---
+// --- Image Uploader Helper Widgets (Unchanged) ---
 class AddImageButton extends StatelessWidget {
   final VoidCallback onPressed;
   const AddImageButton({super.key, required this.onPressed});
