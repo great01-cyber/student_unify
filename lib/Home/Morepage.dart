@@ -42,7 +42,7 @@ class ButtonGrid extends StatelessWidget {
         pageToNavigateTo = Borrowpage();
         break;
       case 'Lend':
-        pageToNavigateTo = LendPage();
+        pageToNavigateTo = LendPage(title: 'Lend',);
         break;
       case 'Donate':
         pageToNavigateTo = Donate(title: 'Donate',);
