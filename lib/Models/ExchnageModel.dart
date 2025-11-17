@@ -1,31 +1,28 @@
+
 import 'dart:convert';
 
-class LendModel {
+class ExchangeModel {
   final String? id; // optional: database id or firestore doc id
   final String category;
   final String title;
   final String description;
-  final String? shortNote; // 🎯 New field for lending
-  final String? extraInformation; // 🎯 New field for lending
+  final String exchangeRequest; // 🎯 REQUIRED: Description of what the user wants in exchange
+  final String? desiredCategory; // Optional: Category of item desired
   final List<String> imageUrls; // either local file paths or uploaded URLs
-  final DateTime? availableFrom;
-  final DateTime? availableUntil;
-  final String? instructions;
+  final String? instructions; // e.g., "Must be collected this week"
   final String? locationAddress; // human readable
   final double? latitude;
   final double? longitude;
   final DateTime createdAt;
 
-  LendModel({
+  ExchangeModel({
     this.id,
     required this.category,
     required this.title,
     required this.description,
-    this.shortNote, // 🎯 Included new field
-    this.extraInformation, // 🎯 Included new field
+    required this.exchangeRequest, // 🎯 Required in constructor
+    this.desiredCategory,
     this.imageUrls = const [],
-    this.availableFrom,
-    this.availableUntil,
     this.instructions,
     this.locationAddress,
     this.latitude,
@@ -33,32 +30,28 @@ class LendModel {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  LendModel copyWith({
+  ExchangeModel copyWith({
     String? id,
     String? category,
     String? title,
     String? description,
-    String? shortNote, // 🎯 Updated field
-    String? extraInformation, // 🎯 Updated field
+    String? exchangeRequest, // 🎯 Updated field
+    String? desiredCategory,
     List<String>? imageUrls,
-    DateTime? availableFrom,
-    DateTime? availableUntil,
     String? instructions,
     String? locationAddress,
     double? latitude,
     double? longitude,
     DateTime? createdAt,
   }) {
-    return LendModel(
+    return ExchangeModel(
       id: id ?? this.id,
       category: category ?? this.category,
       title: title ?? this.title,
       description: description ?? this.description,
-      shortNote: shortNote ?? this.shortNote, // 🎯 Copied new field
-      extraInformation: extraInformation ?? this.extraInformation, // 🎯 Copied new field
+      exchangeRequest: exchangeRequest ?? this.exchangeRequest, // 🎯 Copied mandatory field
+      desiredCategory: desiredCategory ?? this.desiredCategory,
       imageUrls: imageUrls ?? this.imageUrls,
-      availableFrom: availableFrom ?? this.availableFrom,
-      availableUntil: availableUntil ?? this.availableUntil,
       instructions: instructions ?? this.instructions,
       locationAddress: locationAddress ?? this.locationAddress,
       latitude: latitude ?? this.latitude,
@@ -74,12 +67,10 @@ class LendModel {
       'category': category,
       'title': title,
       'description': description,
-      'shortNote': shortNote, // 🎯 Mapped new field
-      'extraInformation': extraInformation, // 🎯 Mapped new field
+      'exchangeRequest': exchangeRequest, // 🎯 Mapped request
+      'desiredCategory': desiredCategory,
       // store list as json string
       'imageUrls': jsonEncode(imageUrls),
-      'availableFrom': availableFrom?.toIso8601String(),
-      'availableUntil': availableUntil?.toIso8601String(),
       'instructions': instructions,
       'locationAddress': locationAddress,
       'latitude': latitude,
@@ -88,23 +79,17 @@ class LendModel {
     };
   }
 
-  factory LendModel.fromMap(Map<String, dynamic> map) {
-    return LendModel(
+  factory ExchangeModel.fromMap(Map<String, dynamic> map) {
+    return ExchangeModel(
       id: map['id']?.toString(),
       category: map['category'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
-      shortNote: map['shortNote'], // 🎯 Parsed new field
-      extraInformation: map['extraInformation'], // 🎯 Parsed new field
+      exchangeRequest: map['exchangeRequest'] ?? '', // 🎯 Parsed mandatory field
+      desiredCategory: map['desiredCategory'],
       imageUrls: map['imageUrls'] != null
           ? List<String>.from(jsonDecode(map['imageUrls']) as List<dynamic>)
           : <String>[],
-      availableFrom: map['availableFrom'] != null
-          ? DateTime.parse(map['availableFrom'])
-          : null,
-      availableUntil: map['availableUntil'] != null
-          ? DateTime.parse(map['availableUntil'])
-          : null,
       instructions: map['instructions'],
       locationAddress: map['locationAddress'],
       latitude:
@@ -117,15 +102,16 @@ class LendModel {
     );
   }
 
-  // For Firestore / REST
+  // For Firestore / REST (Using toMap() for data conversion)
   Map<String, dynamic> toJson() => toMap();
 
-  factory LendModel.fromJson(Map<String, dynamic> json) =>
-      LendModel.fromMap(json);
+  // Factory constructor for easy use with Firestore/API data
+  factory ExchangeModel.fromJson(Map<String, dynamic> json) =>
+      ExchangeModel.fromMap(json);
 
   @override
   String toString() {
-    return 'LendModel(id: $id, category: $category, title: $title, '
-        'note: $shortNote, images: ${imageUrls.length}, location: $locationAddress)';
+    return 'ExchangeModel(id: $id, category: $category, title: $title, '
+        'request: $exchangeRequest, location: $locationAddress)';
   }
 }

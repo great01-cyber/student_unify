@@ -39,7 +39,7 @@ class ButtonGrid extends StatelessWidget {
     switch (buttonName) {
     // --- MODIFICATION 2: Pass 'pageTitle' to the page constructor ---
       case 'Borrow':
-        pageToNavigateTo = Borrowpage();
+        pageToNavigateTo = BorrowRequestPage(title: 'Borrow',);
         break;
       case 'Lend':
         pageToNavigateTo = LendPage(title: 'Lend',);
@@ -48,10 +48,10 @@ class ButtonGrid extends StatelessWidget {
         pageToNavigateTo = Donate(title: 'Donate',);
         break;
       case 'Exchange':
-        pageToNavigateTo = ExchangePage();
+        pageToNavigateTo = ExchangePage(title: 'Exchange',);
         break;
       case 'Sell':
-        pageToNavigateTo = SellPage();
+        pageToNavigateTo = SellPage(title: 'Sell',);
         break;
       default:
         return;

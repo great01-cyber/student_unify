@@ -1,31 +1,25 @@
 import 'dart:convert';
 
-class LendModel {
+class SellModel {
   final String? id; // optional: database id or firestore doc id
   final String category;
   final String title;
   final String description;
-  final String? shortNote; // 🎯 New field for lending
-  final String? extraInformation; // 🎯 New field for lending
+  final double price; // 🎯 Mandatory price for selling
   final List<String> imageUrls; // either local file paths or uploaded URLs
-  final DateTime? availableFrom;
-  final DateTime? availableUntil;
-  final String? instructions;
+  final String? instructions; // e.g., "Cash only" or "Pickup by 5pm"
   final String? locationAddress; // human readable
   final double? latitude;
   final double? longitude;
   final DateTime createdAt;
 
-  LendModel({
+  SellModel({
     this.id,
     required this.category,
     required this.title,
     required this.description,
-    this.shortNote, // 🎯 Included new field
-    this.extraInformation, // 🎯 Included new field
+    required this.price, // 🎯 Required in constructor
     this.imageUrls = const [],
-    this.availableFrom,
-    this.availableUntil,
     this.instructions,
     this.locationAddress,
     this.latitude,
@@ -33,32 +27,26 @@ class LendModel {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  LendModel copyWith({
+  SellModel copyWith({
     String? id,
     String? category,
     String? title,
     String? description,
-    String? shortNote, // 🎯 Updated field
-    String? extraInformation, // 🎯 Updated field
+    double? price, // 🎯 Updated field
     List<String>? imageUrls,
-    DateTime? availableFrom,
-    DateTime? availableUntil,
     String? instructions,
     String? locationAddress,
     double? latitude,
     double? longitude,
     DateTime? createdAt,
   }) {
-    return LendModel(
+    return SellModel(
       id: id ?? this.id,
       category: category ?? this.category,
       title: title ?? this.title,
       description: description ?? this.description,
-      shortNote: shortNote ?? this.shortNote, // 🎯 Copied new field
-      extraInformation: extraInformation ?? this.extraInformation, // 🎯 Copied new field
+      price: price ?? this.price, // 🎯 Copied mandatory field
       imageUrls: imageUrls ?? this.imageUrls,
-      availableFrom: availableFrom ?? this.availableFrom,
-      availableUntil: availableUntil ?? this.availableUntil,
       instructions: instructions ?? this.instructions,
       locationAddress: locationAddress ?? this.locationAddress,
       latitude: latitude ?? this.latitude,
@@ -74,12 +62,9 @@ class LendModel {
       'category': category,
       'title': title,
       'description': description,
-      'shortNote': shortNote, // 🎯 Mapped new field
-      'extraInformation': extraInformation, // 🎯 Mapped new field
+      'price': price, // 🎯 Mapped price
       // store list as json string
       'imageUrls': jsonEncode(imageUrls),
-      'availableFrom': availableFrom?.toIso8601String(),
-      'availableUntil': availableUntil?.toIso8601String(),
       'instructions': instructions,
       'locationAddress': locationAddress,
       'latitude': latitude,
@@ -88,23 +73,17 @@ class LendModel {
     };
   }
 
-  factory LendModel.fromMap(Map<String, dynamic> map) {
-    return LendModel(
+  factory SellModel.fromMap(Map<String, dynamic> map) {
+    return SellModel(
       id: map['id']?.toString(),
       category: map['category'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
-      shortNote: map['shortNote'], // 🎯 Parsed new field
-      extraInformation: map['extraInformation'], // 🎯 Parsed new field
+      // Ensure price is safely parsed to double
+      price: map['price'] != null ? (map['price'] as num).toDouble() : 0.0, // 🎯 Parsed price
       imageUrls: map['imageUrls'] != null
           ? List<String>.from(jsonDecode(map['imageUrls']) as List<dynamic>)
           : <String>[],
-      availableFrom: map['availableFrom'] != null
-          ? DateTime.parse(map['availableFrom'])
-          : null,
-      availableUntil: map['availableUntil'] != null
-          ? DateTime.parse(map['availableUntil'])
-          : null,
       instructions: map['instructions'],
       locationAddress: map['locationAddress'],
       latitude:
@@ -117,15 +96,16 @@ class LendModel {
     );
   }
 
-  // For Firestore / REST
+  // For Firestore / REST (Using toMap() for data conversion)
   Map<String, dynamic> toJson() => toMap();
 
-  factory LendModel.fromJson(Map<String, dynamic> json) =>
-      LendModel.fromMap(json);
+  // Factory constructor for easy use with Firestore/API data
+  factory SellModel.fromJson(Map<String, dynamic> json) =>
+      SellModel.fromMap(json);
 
   @override
   String toString() {
-    return 'LendModel(id: $id, category: $category, title: $title, '
-        'note: $shortNote, images: ${imageUrls.length}, location: $locationAddress)';
+    return 'SellModel(id: $id, category: $category, title: $title, '
+        'price: £${price.toStringAsFixed(2)}, location: $locationAddress)';
   }
 }
