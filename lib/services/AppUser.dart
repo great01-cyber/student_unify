@@ -7,17 +7,23 @@ class AppUser {
   final String? photoUrl;
   final bool emailVerified;
   final DateTime createdAt;
+  final String university;
+  final String fcmToken;
+  final String city;
 
   AppUser({
     required this.uid,
     required this.email,
     required this.emailVerified,
     required this.createdAt,
+    required this.university,
+    required this.fcmToken,
+    required this.city,
     this.displayName,
     this.photoUrl,
   });
 
-  // Firestore -> AppUser
+  // Firestore → AppUser
   factory AppUser.fromMap(Map<String, dynamic> map) {
     return AppUser(
       uid: map['uid'] as String,
@@ -26,10 +32,15 @@ class AppUser {
       photoUrl: map['photoUrl'] as String?,
       emailVerified: map['emailVerified'] as bool? ?? false,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+
+      // ✅ Newly added fields
+      university: map['university'] as String? ?? '',
+      fcmToken: map['fcmToken'] as String? ?? '',
+      city: map['city'] as String? ?? '',
     );
   }
 
-  // AppUser -> Firestore
+  // AppUser → Firestore
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
@@ -38,6 +49,11 @@ class AppUser {
       'photoUrl': photoUrl,
       'emailVerified': emailVerified,
       'createdAt': Timestamp.fromDate(createdAt),
+
+      // ✅ Newly added fields
+      'university': university,
+      'fcmToken': fcmToken,
+      'city': city,
     };
   }
 }

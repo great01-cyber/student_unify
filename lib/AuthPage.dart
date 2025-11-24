@@ -109,7 +109,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
           uid: firebaseUser.uid,
           email: firebaseUser.email!,
           emailVerified: false,
-          createdAt: DateTime.now(),
+          createdAt: DateTime.now(), university: '', fcmToken: '', city: '',
         );
         await _firestore
             .collection('users')
