@@ -3,8 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:student_unify_app/services/AppUser.dart';
 import 'package:string_similarity/string_similarity.dart';
-
-
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'Home/Homepage.dart';
 import 'Home/widgets/ukUniversities.dart';
@@ -60,10 +59,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
 
   void _showSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 4),
-      ),
+      SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
     );
   }
 
@@ -75,29 +71,34 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
     final university = _universityName.text.trim();
     final city = _cityName.text.trim();
 
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     setState(() => _isLoading = true);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     try {
       if (_isLogin) {
-        // LOGIN FLOW
+        // --- LOGIN FLOW ---
         UserCredential userCred = await _auth.signInWithEmailAndPassword(
           email: email,
           password: password,
         );
-
         User? user = userCred.user;
 
         if (user != null && !user.emailVerified) {
           await _auth.signOut();
           _showSnackbar(
-              "Email not verified. Please check your inbox or spam folder to verify your account."
-          );
+              "Email not verified. Please check your inbox or spam folder to verify your account.");
           return;
         }
 
-        _showSnackbar('Login successful!');
+        // Update FCM token on login
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+        if (user != null && fcmToken != null) {
+          await _firestore.collection('users').doc(user.uid).update({
+            'fcmToken': fcmToken,
+          });
+        }
 
+        _showSnackbar('Login successful!');
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => Homepage()),
@@ -113,6 +114,9 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
         final firebaseUser = userCredential.user!;
         await firebaseUser.sendEmailVerification();
 
+        // Get FCM token
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+
         final newUser = AppUser(
           uid: firebaseUser.uid,
           email: firebaseUser.email!,
@@ -120,7 +124,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
           createdAt: DateTime.now(),
           university: university,
           city: city,
-          fcmToken: '',
+          fcmToken: fcmToken ?? '',
         );
 
         await _firestore.collection('users').doc(firebaseUser.uid).set(newUser.toMap());
@@ -158,20 +162,18 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
   }
 
   void _toggleForm() {
-    if (_isLoading) return; // Prevent toggle during loading
-
+    if (_isLoading) return;
     _emailController.clear();
     _passwordController.clear();
     _confirmPasswordController.clear();
     _universityName.clear();
     _cityName.clear();
     _formKey.currentState?.reset();
-
     setState(() => _isLogin = !_isLogin);
     _animationController.forward(from: 0.0);
   }
 
-  // Helper Input Field Widget
+  // Input field builder
   Widget _buildInputField({
     required TextEditingController controller,
     required String label,
@@ -204,6 +206,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
     );
   }
 
+  // Login Form
   Widget _buildLoginForm() {
     return Column(
       children: [
@@ -241,6 +244,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
     );
   }
 
+  // Signup Form with fuzzy university autocomplete
   Widget _buildSignupForm() {
     return Column(
       children: [
@@ -262,8 +266,6 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
               if (textEditingValue.text.isEmpty) {
                 return const Iterable<String>.empty();
               }
-
-              // Fuzzy matching using string_similarity
               final matches = ukUniversities.map((university) {
                 final similarity = StringSimilarity.compareTwoStrings(
                   textEditingValue.text.toLowerCase(),
@@ -279,7 +281,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                   .map((match) => match['university'] as String);
             },
             onSelected: (String selection) {
-              _universityName.text = selection; // Save selected value
+              _universityName.text = selection;
             },
             fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
               controller.text = _universityName.text;
@@ -291,7 +293,6 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                   prefixIcon: const Icon(Icons.school_outlined, color: Color(0xFF1E88E5)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -306,15 +307,12 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
             },
           ),
         ),
-
         _buildInputField(
           controller: _cityName,
           label: 'City',
           icon: Icons.location_city_outlined,
           validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'City name is required.';
-            }
+            if (value == null || value.isEmpty) return 'City name is required.';
             return null;
           },
         ),
@@ -345,11 +343,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildToggleItem({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onPressed,
-  }) {
+  Widget _buildToggleItem({required String label, required bool isSelected, required VoidCallback onPressed}) {
     const Color primaryColor = Color(0xFF1E88E5);
     const Color lightGray = Color(0xFFF5F5F5);
 
@@ -363,9 +357,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
             color: isSelected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(30),
             border: isSelected ? Border.all(color: primaryColor, width: 1.5) : null,
-            boxShadow: isSelected
-                ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))]
-                : null,
+            boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))] : null,
           ),
           child: Center(
             child: Text(
@@ -396,7 +388,6 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              // LOGO
               Center(
                 child: Column(
                   children: [
@@ -423,8 +414,6 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                 ),
               ),
               const SizedBox(height: 40),
-
-              // Toggle
               Container(
                 decoration: BoxDecoration(
                   color: lightGray,
@@ -439,8 +428,6 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                 ),
               ),
               const SizedBox(height: 30),
-
-              // Form
               Form(
                 key: _formKey,
                 child: FadeTransition(
