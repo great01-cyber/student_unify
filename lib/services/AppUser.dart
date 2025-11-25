@@ -49,8 +49,6 @@ class AppUser {
       'photoUrl': photoUrl,
       'emailVerified': emailVerified,
       'createdAt': Timestamp.fromDate(createdAt),
-
-      // ✅ Newly added fields
       'university': university,
       'fcmToken': fcmToken,
       'city': city,
