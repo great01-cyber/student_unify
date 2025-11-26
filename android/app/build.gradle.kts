@@ -14,7 +14,7 @@ android {
         // Enable Java 11 + Core Library Desugaring
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = true   // 🔥 REQUIRED FIX
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
