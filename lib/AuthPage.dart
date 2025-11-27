@@ -21,6 +21,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
   final _formKey = GlobalKey<FormState>();
 
   // Controllers
+  final TextEditingController _displayNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -54,6 +55,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
     _confirmPasswordController.dispose();
     _universityName.dispose();
     _cityName.dispose();
+    _displayNameController.dispose();
     super.dispose();
   }
 
@@ -66,6 +68,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final displayName = _displayNameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final university = _universityName.text.trim();
@@ -86,7 +89,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
         if (user != null && !user.emailVerified) {
           await _auth.signOut();
           _showSnackbar(
-              "Email not verified. Please check your inbox or spam folder to verify your account.");
+              "Email not verified. Please check your inbox or spam folder.");
           return;
         }
 
@@ -114,12 +117,19 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
         final firebaseUser = userCredential.user!;
         await firebaseUser.sendEmailVerification();
 
+        // Set display name in Firebase Auth
+        if (displayName.isNotEmpty) {
+          await firebaseUser.updateDisplayName(displayName);
+          await firebaseUser.reload();
+        }
+
         // Get FCM token
         final fcmToken = await FirebaseMessaging.instance.getToken();
 
         final newUser = AppUser(
           uid: firebaseUser.uid,
           email: firebaseUser.email!,
+          displayName: displayName,
           emailVerified: false,
           createdAt: DateTime.now(),
           university: university,
@@ -163,6 +173,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
 
   void _toggleForm() {
     if (_isLoading) return;
+    _displayNameController.clear();
     _emailController.clear();
     _passwordController.clear();
     _confirmPasswordController.clear();
@@ -249,6 +260,15 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
     return Column(
       children: [
         _buildInputField(
+          controller: _displayNameController,
+          label: 'Full Name',
+          icon: Icons.person_outline,
+          validator: (value) {
+            if (value == null || value.isEmpty) return 'Full name is required.';
+            return null;
+          },
+        ),
+        _buildInputField(
           controller: _emailController,
           label: 'University Email',
           icon: Icons.school_outlined,
@@ -263,9 +283,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
           padding: const EdgeInsets.only(bottom: 16.0),
           child: Autocomplete<String>(
             optionsBuilder: (TextEditingValue textEditingValue) {
-              if (textEditingValue.text.isEmpty) {
-                return const Iterable<String>.empty();
-              }
+              if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
               final matches = ukUniversities.map((university) {
                 final similarity = StringSimilarity.compareTwoStrings(
                   textEditingValue.text.toLowerCase(),
@@ -345,7 +363,6 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
 
   Widget _buildToggleItem({required String label, required bool isSelected, required VoidCallback onPressed}) {
     const Color primaryColor = Color(0xFF1E88E5);
-    const Color lightGray = Color(0xFFF5F5F5);
 
     return Expanded(
       child: GestureDetector(

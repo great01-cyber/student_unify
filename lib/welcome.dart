@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+// NOTE: Assuming you have this file for navigation
 import 'onboardingScreen.dart';
 
 class WelcomePage extends StatefulWidget {
@@ -9,59 +10,71 @@ class WelcomePage extends StatefulWidget {
   State<WelcomePage> createState() => _WelcomePageState();
 }
 
-class _WelcomePageState extends State<WelcomePage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _opacityAnimation;
+class _WelcomePageState extends State<WelcomePage> {
+  // 1. State variable for the animation (opacity starts at 0, fully transparent)
+  double _opacity = 0.0;
 
   @override
   void initState() {
     super.initState();
 
-    // Simple fade-in animation for text
-    _controller = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
+    // 2. Start the animation immediately after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        _opacity = 1.0; // Fade in the text
+      });
+    });
 
-    _opacityAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
-
-    _controller.forward();
-
-    // Move to Onboarding screen after delay
-    Timer(const Duration(seconds: 5), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-      );
+    // 3. 🎯 Add the Timer logic for automatic navigation (e.g., after 3 seconds)
+    Timer(const Duration(seconds: 8), () {
+      if (mounted) {
+        // Navigate to the next screen after the delay
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
+      }
     });
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: FadeTransition(
-          opacity: AlwaysStoppedAnimation(1.0),
-          child: Text(
-            "Student Unify",
-            style: TextStyle(
-              color: Color(0xFFeb5777),
-              fontSize: 32,
-              fontWeight: FontWeight.w300,
-              fontFamily: 'Quicksand',
+      body: Stack(
+        children: [
+          // 1. 🎯 STUNIFY TEXT: Now wrapped in AnimatedOpacity
+          Center(
+            child: AnimatedOpacity(
+              opacity: _opacity, // Controlled by the state variable
+              duration: const Duration(milliseconds: 800), // How long the fade takes
+              curve: Curves.easeIn, // Smooth acceleration
+              child: const Text(
+                "stunify",
+                style: TextStyle(
+                  color: Color(0xFFeb5777),
+                  fontSize: 40,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Quicksand',
+                ),
+              ),
             ),
           ),
-        ),
+
+          // 2. 🎯 IMAGE: Positioned at the bottom edge, filling the width (Unchanged)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Image(
+              image: const AssetImage("assets/images/Frame.png"),
+              width: screenWidth,
+              height: 370,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ],
       ),
     );
   }

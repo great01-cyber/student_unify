@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:student_unify_app/Home/widgets/scrolling.dart';
-
-import 'Carousel.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// NOTE: Adjust these imports to match your actual file structure
+import 'package:student_unify_app/Home/widgets/scrolling.dart';
+import '../../services/MapSelectionPage.dart';
+import 'Carousel.dart';
 
 class HomeContentPage extends StatefulWidget {
   const HomeContentPage({super.key});
@@ -13,16 +16,62 @@ class HomeContentPage extends StatefulWidget {
 
 class _HomeContentPageState extends State<HomeContentPage> {
   String username = "Loading...";
+  String _selectedAddress = "";
+  String? _selectedCoordinates;
 
   @override
   void initState() {
     super.initState();
     loadUser();
+    loadSavedLocation(); // Load saved location when page initializes
   }
 
+  // ---------------- Load saved location ----------------
+  void loadSavedLocation() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedAddress = prefs.getString('selected_address') ?? "";
+      _selectedCoordinates = prefs.getString('selected_coordinates');
+    });
+  }
+
+  // ---------------- Save location ----------------
+  void saveLocation(String address, String coords) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_address', address);
+    await prefs.setString('selected_coordinates', coords);
+  }
+
+  // ---------------- Load username ----------------
   void loadUser() async {
     username = await fetchUserName();
-    setState(() {}); // update UI
+    setState(() {});
+  }
+
+  // ---------------- Navigate to MapSelectionPage ----------------
+  void _selectLocation() async {
+    final String? returnValue = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MapSelectionPage(),
+      ),
+    );
+
+    if (returnValue != null && returnValue.contains('||')) {
+      final parts = returnValue.split('||');
+      final coords = parts[0];
+      final address = parts[1];
+
+      setState(() {
+        _selectedAddress = address;
+        _selectedCoordinates = coords;
+      });
+
+      // Save to SharedPreferences
+      saveLocation(address, coords);
+
+      print('New location saved: $_selectedCoordinates ($address)');
+    }
   }
 
   @override
@@ -35,14 +84,13 @@ class _HomeContentPageState extends State<HomeContentPage> {
             Container(
               height: 160,
               decoration: const BoxDecoration(
-                color: Colors.blueGrey,
+                color: Color(0xFFFAFAFA),
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(25),
                   bottomRight: Radius.circular(25),
                 ),
               ),
             ),
-
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -51,6 +99,7 @@ class _HomeContentPageState extends State<HomeContentPage> {
                   children: [
                     const SizedBox(height: 12),
 
+                    // Top row: Greeting + icons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -58,29 +107,27 @@ class _HomeContentPageState extends State<HomeContentPage> {
                           child: Text(
                             "${getGreeting()}, $username",
                             style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              fontFamily: 'Comfortaa',
+                              fontWeight: FontWeight.w300,
+                              fontSize: 20,
+                              color: Color(0xFF1E3A8A),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-
                         Row(
                           children: [
                             const Icon(
                               Icons.notifications_outlined,
-                              color: Colors.white,
+                              color: Color(0xFF1E3A8A),
                             ),
                             const SizedBox(width: 16),
-
                             Builder(
                               builder: (context) => GestureDetector(
-                                onTap: () =>
-                                    Scaffold.of(context).openEndDrawer(),
+                                onTap: () => Scaffold.of(context).openEndDrawer(),
                                 child: const Icon(
                                   Icons.menu_outlined,
-                                  color: Colors.white,
+                                  color: Color(0xFF1E3A8A),
                                 ),
                               ),
                             ),
@@ -91,20 +138,28 @@ class _HomeContentPageState extends State<HomeContentPage> {
 
                     const SizedBox(height: 20),
 
-                    Row(
-                      children: const [
-                        Icon(Icons.pin_drop_outlined, color: Colors.white),
-                        SizedBox(width: 5),
-                        Text(
-                          "Anderson Road",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
+                    // Location row
+                    GestureDetector(
+                      onTap: _selectLocation,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.pin_drop_outlined, color: Color(0xFF1E3A8A)),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              _selectedAddress.isEmpty ? "Select your location" : _selectedAddress,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'Comfortaa',
+                                fontWeight: FontWeight.w300,
+                                color: Color(0xFF1E3A8A),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        Icon(Icons.arrow_drop_down_outlined, color: Colors.white),
-                      ],
+                          const Icon(Icons.arrow_drop_down_outlined, color: Color(0xFF1E3A8A)),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 30),
@@ -123,8 +178,7 @@ class _HomeContentPageState extends State<HomeContentPage> {
           child: SingleChildScrollView(
             child: Column(
               children: const [
-                HorizontalItemList(
-                    categoryTitle: 'Free Academic and Study Materials'),
+                HorizontalItemList(categoryTitle: 'Free Academic and Study Materials'),
                 SizedBox(height: 16),
                 HorizontalItemList(categoryTitle: 'Sport and Leisure Wears'),
                 SizedBox(height: 16),
@@ -145,9 +199,10 @@ class _HomeContentPageState extends State<HomeContentPage> {
   }
 }
 
+// ---------------- UTILITY FUNCTIONS ----------------
+
 String getGreeting() {
   final hour = DateTime.now().hour;
-
   if (hour < 12) return "Good Morning";
   if (hour < 17) return "Good Afternoon";
   if (hour < 21) return "Good Evening";
@@ -156,7 +211,6 @@ String getGreeting() {
 
 Future<String> fetchUserName() async {
   User? user = FirebaseAuth.instance.currentUser;
-
   if (user != null) {
     String? name = user.displayName;
     if (name != null && name.isNotEmpty) {
@@ -164,6 +218,5 @@ Future<String> fetchUserName() async {
     }
     return "User";
   }
-
   return "Guest";
 }

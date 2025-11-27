@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:student_unify_app/services/Authwrapper.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:student_unify_app/welcome.dart';
 
 import 'firebase_options.dart';
 import 'onboardingScreen.dart';
@@ -27,7 +28,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       // If user hasn't seen onboarding -> show OnboardingScreen, otherwise AuthWrapper
-      home: seenOnboarding ? const AuthWrapper() : OnboardingScreen(),
+      home: seenOnboarding ? const AuthWrapper() : WelcomePage(),
     );
   }
 }

@@ -161,7 +161,9 @@ class HorizontalItemList extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(categoryTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(categoryTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w300, fontFamily: 'Comfortaa',
+
+                color: Color(0xFF1E3A8A),)),
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -173,9 +175,9 @@ class HorizontalItemList extends StatelessWidget {
                 },
                 child: Row(
                   children: const [
-                    Text("All", style: TextStyle(color: Colors.teal, fontWeight: FontWeight.w500)),
+                    Text("All", style: TextStyle(color: Color(0xFF1E3A8A), fontWeight: FontWeight.w300, fontFamily: 'Comfortaa',)),
                     SizedBox(width: 2),
-                    Icon(Icons.keyboard_arrow_right, color: Colors.teal, size: 20),
+                    Icon(Icons.keyboard_arrow_right, color: Color(0xFF1E3A8A), size: 20),
                   ],
                 ),
               ),

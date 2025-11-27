@@ -27,6 +27,9 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
   bool _hasLocationPermission = false;
   bool _loadingLocation = false;
 
+  // 🎯 CHANGED: Distance in MILES (default 5 miles)
+  double _selectedDistance = 5.0;
+
   @override
   void initState() {
     super.initState();
@@ -40,9 +43,7 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
     super.dispose();
   }
 
-  // -------------------------
-  // Permission & current location helpers
-  // -------------------------
+  // --- Permission & Current Location Helpers (Unchanged) ---
   Future<void> _checkLocationPermission() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -63,7 +64,6 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
           desiredAccuracy: LocationAccuracy.best);
       return pos;
     } catch (e) {
-      // permission denied or GPS off
       debugPrint('getCurrentPosition error: $e');
       return null;
     } finally {
@@ -73,7 +73,6 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
 
   // Centers map to given LatLng (and optionally sets marker & updates address text)
   Future<void> _goToLocationAndMark(LatLng latLng, {String? address}) async {
-    // Update marker & address
     final infoTitle = address ?? _selectedPostcode;
     setState(() {
       _selectedMarker = Marker(
@@ -81,20 +80,16 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
         position: latLng,
         infoWindow: InfoWindow(title: infoTitle),
       );
-      _selectedPostcode = address ?? _selectedPostcode;
-      // reflect in autocomplete input
+      _selectedPostcode = address ?? infoTitle;
       _autocompleteController.text = _selectedPostcode;
     });
 
-    // Move camera
     await _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(latLng, 15.0),
     );
   }
 
-  // -------------------------
-  // Autocomplete selection handler (unchanged but uses lat/lng)
-  // -------------------------
+  // --- Autocomplete selection handler (Unchanged logic, ensures good address) ---
   void _onPlaceSelected(Place placeDetails) {
     if (placeDetails.lat == null || placeDetails.lng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -103,23 +98,17 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
       return;
     }
     final latLng = LatLng(placeDetails.lat!, placeDetails.lng!);
-
-    String postcode = placeDetails.zipCode ??
-        placeDetails.formattedAddress ??
-        "Selected Location";
-
-    String infoTitle = placeDetails.name ??
-        placeDetails.formattedAddress ??
-        "Selected Location";
+    String displayAddress = placeDetails.formattedAddress ?? "Selected Location";
+    String infoTitle = placeDetails.name ?? displayAddress;
 
     setState(() {
-      _selectedPostcode = postcode.toUpperCase();
+      _selectedPostcode = displayAddress;
       _selectedMarker = Marker(
         markerId: const MarkerId("selected_location"),
         position: latLng,
         infoWindow: InfoWindow(title: infoTitle),
       );
-      _autocompleteController.text = _selectedPostcode;
+      _autocompleteController.text = displayAddress;
     });
 
     _mapController?.animateCamera(
@@ -127,9 +116,7 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
     );
   }
 
-  // -------------------------
-  // Map tap -> reverse geocode & set marker
-  // -------------------------
+  // --- Map tap -> reverse geocode & set marker (Unchanged logic, ensures readable address) ---
   void _onMapTapped(LatLng latLng) async {
     try {
       List<Placemark> placemarks =
@@ -138,11 +125,18 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
       String displayTitle;
       if (placemarks.isNotEmpty) {
         final placemark = placemarks.first;
-        final candidate = placemark.postalCode ??
-            "${placemark.street ?? ''}, ${placemark.locality ?? ''}";
+        final streetAndCity = [placemark.street, placemark.locality]
+            .where((s) => s != null && s.isNotEmpty)
+            .join(', ');
+
+        final candidate = streetAndCity.isNotEmpty
+            ? streetAndCity
+            : placemark.postalCode ?? "Selected Location";
+
         _selectedPostcode = candidate;
         displayTitle = candidate;
         _autocompleteController.text = candidate;
+
       } else {
         _selectedPostcode = "Selected Coordinates";
         displayTitle = _selectedPostcode;
@@ -167,9 +161,7 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
     }
   }
 
-  // -------------------------
-  // Confirm: persist and return a "lat,lng||address" string
-  // -------------------------
+  // --- Confirm: returns "lat,lng||address||distance_mi" ---
   void _confirmLocation() {
     if (_selectedMarker == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -178,20 +170,19 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
       return;
     }
 
-    // Get coords from selected marker
     final LatLng pos = _selectedMarker!.position;
     final double lat = pos.latitude;
     final double lng = pos.longitude;
 
-    // Prefer a human-readable address if available; otherwise use the postcode string
-    final String addressOrPostcode = (_selectedMarker!.infoWindow.title != null &&
+    final String addressToReturn = (_selectedMarker!.infoWindow.title != null &&
         _selectedMarker!.infoWindow.title!.isNotEmpty)
         ? _selectedMarker!.infoWindow.title!
         : _selectedPostcode;
 
-    // Build the return value in the format your Donate page expects:
-    // "lat,lng||address"
-    final String returnValue = "${lat.toStringAsFixed(6)},${lng.toStringAsFixed(6)}||$addressOrPostcode";
+    // 🎯 Use MILES in the return value
+    // Format: "lat,lng||address||distance_mi"
+    final String returnValue =
+        "${lat.toStringAsFixed(6)},${lng.toStringAsFixed(6)}||$addressToReturn||${_selectedDistance.toStringAsFixed(1)}";
 
     if (mounted) {
       Navigator.pop(context, returnValue);
@@ -210,63 +201,106 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
       ),
       body: Stack(
         children: [
+          // 1. Google Map (Covers the whole background)
           GoogleMap(
             initialCameraPosition:
             CameraPosition(target: _initialPosition, zoom: 12),
             onMapCreated: (controller) => _mapController = controller,
             onTap: _onMapTapped,
             markers: _selectedMarker != null ? {_selectedMarker!} : {},
-            myLocationButtonEnabled: false, // we'll provide our own FAB
+            myLocationButtonEnabled: false,
             myLocationEnabled: _hasLocationPermission,
             zoomControlsEnabled: false,
           ),
 
-          // Autocomplete Text Field (top)
+          // 2. Control Panel Container (Search and Slider)
           Positioned(
-            top: 10,
-            left: 10,
-            right: 10,
+            top: 0,
+            left: 0,
+            right: 0,
             child: SafeArea(
               child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                color: Colors.white.withOpacity(0.95), // Slight opacity for map visibility
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // --- Search Bar ---
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: AddressAutocompleteTextField(
+                          mapsApiKey: kGoogleApiKey,
+                          controller: _autocompleteController,
+                          onSuggestionClick: _onPlaceSelected,
+                          componentCountry: 'uk',
+                          type: AutoCompleteType.postalCode,
+                          decoration: InputDecoration(
+                            hintText: "Search Postcode or Address...",
+                            prefixIcon:
+                            const Icon(Icons.search, color: Colors.deepPurple),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.only(top: 15),
+                            suffixIcon: _autocompleteController.text.isNotEmpty
+                                ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () => _autocompleteController.clear(),
+                            )
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // --- Distance Slider (Now in miles and separate container) ---
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Search Radius: ${_selectedDistance.toStringAsFixed(0)} mi',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Slider(
+                          value: _selectedDistance,
+                          min: 1.0,
+                          max: 30.0, // Increased max range for miles
+                          divisions: 29,
+                          label: '${_selectedDistance.toStringAsFixed(0)} mi',
+                          activeColor: Colors.deepPurple,
+                          onChanged: (double value) {
+                            setState(() {
+                              _selectedDistance = value;
+                            });
+                          },
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text('1 mi', style: TextStyle(fontSize: 12)),
+                            Text('30 mi', style: TextStyle(fontSize: 12)),
+                          ],
+                        )
+                      ],
                     ),
                   ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: AddressAutocompleteTextField(
-                    mapsApiKey: kGoogleApiKey,
-                    controller: _autocompleteController,
-                    onSuggestionClick: _onPlaceSelected,
-                    componentCountry: 'uk',
-                    type: AutoCompleteType.postalCode,
-                    decoration: InputDecoration(
-                      hintText: "Search Postcode or Address...",
-                      prefixIcon:
-                      const Icon(Icons.search, color: Colors.deepPurple),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.only(top: 15),
-                      suffixIcon: _autocompleteController.text.isNotEmpty
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _autocompleteController.clear(),
-                      )
-                          : null,
-                    ),
-                  ),
                 ),
               ),
             ),
           ),
 
-          // Confirm Button (bottom)
+          // 3. Confirm Button (bottom)
           Positioned(
             bottom: 30,
             left: 50,
@@ -293,7 +327,8 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
             ),
           ),
 
-          // My Location FAB (bottom-right)
+          // 4. My Location FAB (bottom-right)
+          // 🎯 This is the "Use Current Location" button.
           Positioned(
             bottom: 100,
             right: 16,
@@ -304,7 +339,8 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
                   await _checkLocationPermission();
                   if (!_hasLocationPermission) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Location permission is required.')),
+                      const SnackBar(
+                          content: Text('Location permission is required.')),
                     );
                     return;
                   }
@@ -313,24 +349,27 @@ class _MapSelectionPageState extends State<MapSelectionPage> {
                 if (pos != null) {
                   final latLng = LatLng(pos.latitude, pos.longitude);
 
-                  // reverse geocode to find approximate postcode/address
+                  // Reverse geocode to find approximate address/postcode
                   String? addr;
                   try {
-                    final places =
-                    await placemarkFromCoordinates(pos.latitude, pos.longitude);
+                    final places = await placemarkFromCoordinates(
+                        pos.latitude, pos.longitude);
                     if (places.isNotEmpty) {
                       final pm = places.first;
-                      addr = pm.postalCode ??
-                          "${pm.street ?? ''}, ${pm.locality ?? ''}";
+                      // Build a clean address string
+                      addr = [pm.street, pm.locality]
+                          .where((s) => s != null && s.isNotEmpty)
+                          .join(', ');
                     }
                   } catch (_) {
                     // ignore reverse-geocode failure
                   }
 
-                  await _goToLocationAndMark(latLng, address: addr);
+                  await _goToLocationAndMark(latLng, address: addr ?? 'My Current Location');
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Unable to determine current location.')),
+                    const SnackBar(
+                        content: Text('Unable to determine current location.')),
                   );
                 }
               },

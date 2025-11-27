@@ -1,310 +1,149 @@
-// lib/pages/onboarding_screen.dart
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:student_unify_app/services/Authwrapper.dart';
 
-import 'AuthPage.dart';
-
-class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({Key? key}) : super(key: key);
-
-  @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
-}
-
-class _OnboardPageData {
-  final String title;
-  final String subtitle;
-  final String? imageAsset;
-  final double? imageWidth;
-  final double? imageHeight;
-  final BoxFit? fit;
-  final Alignment? alignment;
-  final Color? bgColor;
-  final double? borderRadius;
-
-  const _OnboardPageData({
-    required this.title,
-    required this.subtitle,
-    this.imageAsset,
-    this.imageWidth,
-    this.imageHeight,
-    this.fit,
-    this.alignment,
-    this.bgColor,
-    this.borderRadius,
-  });
-}
-
-class _OnboardingScreenState extends State<OnboardingScreen> {
-  final PageController _controller = PageController();
-  int _currentPage = 0;
-
-  final List<_OnboardPageData> _pages = const [
-    _OnboardPageData(
-      title: 'Welcome to Student Unify',
-      subtitle:
-      'This is the private hub for verified students. Buy, sell, and share securely with a trusted community from universities across the country.',
-      imageAsset: "assets/images/university.png",
-      imageWidth: 500,
-      imageHeight: 500,
-      fit: BoxFit.contain,
-      alignment: Alignment.center,
-      bgColor: Color(0xFFF5F5F5),
-      borderRadius: 16,
-    ),
-    _OnboardPageData(
-      title: 'Share Smarter Not Harder',
-      subtitle: 'Save & Earn: Buy, sell, and swap textbooks, furniture, and dorm essentials.',
-      imageAsset: "assets/images/sharing.png",
-      imageWidth: 350,
-      imageHeight: 350,
-      fit: BoxFit.cover,
-      alignment: Alignment.center,
-      bgColor: Colors.transparent,
-      borderRadius: 12,
-    ),
-    _OnboardPageData(
-      title: 'Get Verified to Join',
-      subtitle:
-      'It all starts with your university email. Verifying your status is fast, secure, and unlocks the entire network.',
-      imageAsset: "assets/images/verified.png",
-      imageWidth: 500,
-      imageHeight: 500,
-      fit: BoxFit.contain,
-      alignment: Alignment.topCenter,
-      bgColor: Color(0xFFF5F5F5),
-      borderRadius: 20,
-    ),
-  ];
-
-  void _goToNext() {
-    if (_currentPage < _pages.length - 1) {
-      _controller.animateToPage(
-        _currentPage + 1,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.ease,
-      );
-    } else {
-      _finishOnboarding();
-    }
-  }
-
-  void _skip() {
-    _finishOnboarding();
-  }
-
-  Future<void> _finishOnboarding() async {
-    // Save flag so onboarding won't show again
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('seenOnboarding', true);
-
-    // Replace onboarding with AuthWrapper (which will route to AuthPage or Homepage)
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const AuthPage()),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Widget _buildDots() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(_pages.length, (index) {
-        final bool isActive = index == _currentPage;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          margin: const EdgeInsets.symmetric(horizontal: 6),
-          width: isActive ? 18 : 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF1E88E5) : const Color(0xFFE0E0E0),
-            borderRadius: BorderRadius.circular(12),
-          ),
-        );
-      }),
-    );
-  }
-
-  void _openPreview(String asset) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        insetPadding: const EdgeInsets.all(8),
-        backgroundColor: Colors.black,
-        child: Stack(
-          children: [
-            InteractiveViewer(
-              panEnabled: true,
-              minScale: 1,
-              maxScale: 4,
-              child: Image.asset(asset, fit: BoxFit.contain),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildImageFor(_OnboardPageData page) {
-    final mq = MediaQuery.of(context);
-    final defaultWidth = mq.size.width * 0.55;
-    final defaultHeight = mq.size.width * 0.55;
-
-    final width = page.imageWidth ?? defaultWidth;
-    final height = page.imageHeight ?? defaultHeight;
-    final fit = page.fit ?? BoxFit.contain;
-    final alignment = page.alignment ?? Alignment.center;
-    final bgColor = page.bgColor ?? Colors.transparent;
-    final borderRadius = BorderRadius.circular(page.borderRadius ?? 16);
-
-    if (page.imageAsset == null) {
-      return Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: borderRadius,
-        ),
-        child: const Icon(Icons.school, size: 90, color: Color(0xFF9E9E9E)),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () => _openPreview(page.imageAsset!),
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: borderRadius,
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: Image.asset(
-          page.imageAsset!,
-          fit: fit,
-          alignment: alignment,
-          width: width,
-          height: height,
-          errorBuilder: (context, error, stackTrace) => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                SizedBox(height: 8),
-                Text('Image not found', style: TextStyle(color: Colors.grey)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+class OnboardingScreen extends StatelessWidget {
+  const OnboardingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, right: 16),
-                child: TextButton(
-                  onPressed: _skip,
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(
-                      color: Color(0xFF1E88E5),
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Quicksand',
-                    ),
-                  ),
-                ),
-              ),
+      body: Stack(
+        children: [
+          /// Background Image
+          Positioned.fill(
+            child: Image.asset(
+              "assets/images/image.png", // change to your image path
+              fit: BoxFit.cover,
             ),
-            Expanded(
-              child: PageView.builder(
-                controller: _controller,
-                itemCount: _pages.length,
-                onPageChanged: (index) => setState(() => _currentPage = index),
-                itemBuilder: (context, index) {
-                  final page = _pages[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildImageFor(page),
-                        const SizedBox(height: 28),
-                        Text(
-                          page.title,
-                          textAlign: TextAlign.center,
-                          style: textTheme.headlineSmall?.copyWith(
-                            fontFamily: 'Quicksand',
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF212121),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          page.subtitle,
-                          textAlign: TextAlign.center,
-                          style: textTheme.bodyMedium?.copyWith(
-                            fontFamily: 'Quicksand',
-                            fontSize: 16,
-                            color: const Color(0xFF757575),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+          ),
+
+          /// Dark overlay for readability (optional)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.4),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+
+          /// CONTENT
+          SafeArea(
+            // Increased top padding slightly for overall breathing room
+            child: Padding(
+              padding: const EdgeInsets.only(top: 80, left: 30, right: 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _buildDots(),
-                  ElevatedButton(
-                    onPressed: _goToNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E88E5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  // --- Role Selection Buttons ---
+                  Row(
+                    children: [
+                      GestureDetector(
+                        child: Container(
+                          height: 30,
+                          width: 90,
+                          child: Center(child: Text("Student", style: TextStyle(fontSize: 12, color: Colors.black),)),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        child: Container(
+                          height: 30,
+                          width: 90,
+                          child: Center(child: Text("Non-Student", style: TextStyle(fontSize: 12, color: Colors.white),)),
+                          decoration: BoxDecoration(
+                            color: Colors.pinkAccent,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // 🎯 PUSH DOWN: Increased this spacer significantly
+                  const SizedBox(height: 150),
+
+                  /// Title: "Dear students"
+                  const Text(
+                    "Dear students",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: Text(
-                      _currentPage == _pages.length - 1 ? 'Done' : 'Next',
-                      style: const TextStyle(
-                        fontFamily: 'Quicksand',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                    textAlign: TextAlign.center,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  /// Subtitle
+                  const Text(
+                    "Find What You Need.\n"
+                        "Share What You Have.",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontFamily: "Poppins",
+                      fontWeight: FontWeight.w300,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  // The remaining space here is flexible due to 'Expanded' below,
+                  // but we ensure the content above is pushed down.
+
+                  // Use a Spacer to push the remaining buttons to the very bottom
+                  const Spacer(),
+
+                  // --- "signup" Button ---
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "signup",
+                        style: TextStyle(fontSize: 18),
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 20),
+
+                  // --- "I already have an account" Button ---
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.pinkAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "I already have an account",
+                        style: TextStyle(fontSize: 18),
+                      ),
+                    ),
+                  ),
+
+                  // Add padding to ensure buttons clear the bottom edge of the screen
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
