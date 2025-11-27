@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:student_unify_app/Home/community.dart';
 import 'package:student_unify_app/Home/widgets/HomeContentPage.dart';
 import 'package:student_unify_app/Home/widgets/bottomnavbar.dart';
+import 'Drawer Section/My Impact/MyImpact.dart';
+import 'Drawer Section/My Listings/Listings.dart';
+import 'Drawer Section/My Wishlist/Wishlist.dart';
+import 'Drawer Section/My profile account/MyProfileAccount.dart';
+import 'Drawer Section/My rewards/MyRewards.dart';
+import 'Drawer Section/Notification Settings/NotificationSettings.dart';
+import 'Drawer Section/Stunifiers Near Me/Stunifiers.dart';
+import 'Drawer Section/Useful Tips/UsefulTips.dart';
 import 'Morepage.dart';
 import 'SearchPage.dart';
 import 'messages.dart';
@@ -40,7 +48,7 @@ class UserDrawer extends StatelessWidget {
               backgroundImage: NetworkImage(profileImageUrl), // Placeholder URL
             ),
             decoration: const BoxDecoration(
-              color: Color(0xFF1E88E5), // Student Unify Blue
+              color: Color(0xFFFF6786), // Student Unify Blue
             ),
           ),
 
@@ -49,8 +57,11 @@ class UserDrawer extends StatelessWidget {
             leading: const Icon(Icons.home),
             title: const Text('Home'),
             onTap: () {
-              // Navigate to Home
-              Navigator.pop(context); // Close the drawer
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Homepage()),
+              );
             },
           ),
 
@@ -66,16 +77,22 @@ class UserDrawer extends StatelessWidget {
             leading: const Icon(Icons.list_alt),
             title: const Text('My Listings'),
             onTap: () {
-              // Navigate to My Listings
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => MyDonationListingsPage()),
+              );
             },
           ),
           ListTile(
             leading: const Icon(Icons.favorite_border),
             title: const Text('My Wishlist'),
             onTap: () {
-              // Navigate to My Wishlist
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyWishlist()),
+              );
             },
           ),
 
@@ -91,24 +108,33 @@ class UserDrawer extends StatelessWidget {
             leading: const Icon(Icons.show_chart),
             title: const Text('My Impact'),
             onTap: () {
-              // Navigate to My Impact
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SustainabilityPage()),
+              );
             },
           ),
           ListTile(
             leading: const Icon(Icons.verified_user),
             title: const Text('My Badges'),
             onTap: () {
-              // Navigate to My Badges
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const Myrewards()),
+              );
             },
           ),
           ListTile(
             leading: const Icon(Icons.lightbulb_outline),
             title: const Text('Useful Tips'),
             onTap: () {
-              // Navigate to Useful Tips
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FlashcardsScreen()),
+              );
             },
           ),
 
@@ -117,31 +143,40 @@ class UserDrawer extends StatelessWidget {
           // 5. Settings Section
           const Padding(
             padding: EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 4.0),
-            child: Text('SETTINGS',
+            child: Text('Settings',
                 style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
           ),
           ListTile(
             leading: const Icon(Icons.account_circle_outlined),
             title: const Text('My Profile Account'),
             onTap: () {
-              // Navigate to Profile Account Settings
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const Myprofileaccount()),
+              );
             },
           ),
           ListTile(
             leading: const Icon(Icons.notifications_none),
             title: const Text('Notification Settings'),
             onTap: () {
-              // Navigate to Notification Settings
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const Notificationsettings()),
+              );
             },
           ),
           ListTile(
             leading: const Icon(Icons.location_on_outlined),
             title: const Text('Stunify Near Me'),
             onTap: () {
-              // Navigate to Stunify Near Me
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const Stunifiers()),
+              );
             },
           ),
           // The 'necessary' other one
@@ -149,8 +184,11 @@ class UserDrawer extends StatelessWidget {
             leading: const Icon(Icons.help_outline),
             title: const Text('Help & Support'),
             onTap: () {
-              // Navigate to Help & Support
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const Stunifiers()),
+              );
             },
           ),
 
@@ -161,8 +199,11 @@ class UserDrawer extends StatelessWidget {
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Logout', style: TextStyle(color: Colors.red)),
             onTap: () {
-              // TODO: Implement actual FirebaseAuth.instance.signOut() here
-              Navigator.pop(context);
+              Navigator.pop(context); // close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Homepage()),
+              );
             },
           ),
         ],
@@ -192,8 +233,8 @@ class _HomepageState extends State<Homepage> {
 
   final List<Widget> _pages = [
     HomeContentPage(),
-    SearchPage(),
-    Community(),
+    SearchDonationPage(),
+    CommunityPage(),
     Message(),
   ];
 

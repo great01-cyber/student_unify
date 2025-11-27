@@ -61,6 +61,8 @@ dev_dependencies:
   flutter_local_notifications: ^19.5.0
   string_similarity: ^2.1.1
   rename: ^3.1.0
+  provider: ^6.1.5+1
+  fl_chart: ^1.1.1
 
 
 
