@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:student_unify_app/Login/NonStudentLogin.dart';
+import 'package:student_unify_app/Login/StudentPage.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -35,45 +37,68 @@ class OnboardingScreen extends StatelessWidget {
                   Row(
                     children: [
                       GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => StudentLogin()),  // ← replace with your screen
+                          );
+                        },
                         child: Container(
                           height: 30,
                           width: 90,
-                          child: Center(child: Text("Student", style: TextStyle(fontSize: 12, color: Colors.black),)),
+                          alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.pinkAccent.withOpacity(0.4),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            "Student",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.pinkAccent,
+                            ),
                           ),
                         ),
+
                       ),
                       const SizedBox(width: 10),
-                      GestureDetector(
-                        child: Container(
-                          height: 30,
-                          width: 90,
-                          child: Center(child: Text("Non-Student", style: TextStyle(fontSize: 12, color: Colors.white),)),
-                          decoration: BoxDecoration(
-                            color: Colors.pinkAccent,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                      ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => NonStudentLogin()),  // ← replace with your screen
+                );
+              },
+              child: Container(
+                height: 30,
+                width: 90,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.pinkAccent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  "Non-Student",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
                     ],
                   ),
 
                   // 🎯 PUSH DOWN: Increased this spacer significantly
-                  const SizedBox(height: 150),
-
-                  /// Title: "Dear students"
-                  const Text(
-                    "Dear students",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
+                  const SizedBox(height: 300),
                   const SizedBox(height: 10),
 
                   /// Subtitle
@@ -83,64 +108,12 @@ class OnboardingScreen extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 30,
-                      fontFamily: "Poppins",
+                      fontFamily: "Mont",
                       fontWeight: FontWeight.w300,
                     ),
                     textAlign: TextAlign.center,
                   ),
-
-                  // The remaining space here is flexible due to 'Expanded' below,
-                  // but we ensure the content above is pushed down.
-
-                  // Use a Spacer to push the remaining buttons to the very bottom
-                  const Spacer(),
-
-                  // --- "signup" Button ---
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        "signup",
-                        style: TextStyle(fontSize: 18),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // --- "I already have an account" Button ---
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.pinkAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        "I already have an account",
-                        style: TextStyle(fontSize: 18),
-                      ),
-                    ),
-                  ),
-
-                  // Add padding to ensure buttons clear the bottom edge of the screen
-                  const SizedBox(height: 20),
-                ],
-              ),
+              ]),
             ),
           ),
         ],

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:student_unify_app/Login/signup.dart';
 
-import 'Non-StudentSignUp.dart';
+import 'TermPage.dart';
 
-class NonStudentLogin extends StatelessWidget {
-  const NonStudentLogin({super.key});
+class StudentLogin extends StatelessWidget {
+  const StudentLogin({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +27,9 @@ class NonStudentLogin extends StatelessWidget {
 
           /// Dark overlay for readability (optional)
           Positioned.fill(
-            child: Container(color: Colors.black.withOpacity(0.4)),
+            child: Container(
+              color: Colors.black.withOpacity(0.4),
+            ),
           ),
 
           /// CONTENT
@@ -39,34 +43,31 @@ class NonStudentLogin extends StatelessWidget {
                   // --- Role Selection Buttons ---
                   Row(
                     children: [
-                      const SizedBox(width: 10),
                       GestureDetector(
-                        child: Container(
-                          height: 30,
-                          width: 90,
-                          child: Center(
-                            child: Text(
-                              "Non-Student",
+                          child: Container(
+                            height: 30,
+                            width: 90,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.pinkAccent.withOpacity(0.4),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                  offset: Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              "Student",
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.white,
+                                color: Colors.pinkAccent,
                               ),
                             ),
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.pinkAccent,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withOpacity(0.4),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                                offset: Offset(0, 1),
-                              ),
-                            ],
-                          ),
-
-                        ),
+                          )
                       ),
                     ],
                   ),
@@ -74,25 +75,14 @@ class NonStudentLogin extends StatelessWidget {
                   // 🎯 PUSH DOWN: Increased this spacer significantly
                   const SizedBox(height: 150),
 
-                  /// Title: "Dear students"
-                  const Text(
-                    "Dear non-students,",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Mont',
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-
                   const SizedBox(height: 10),
 
                   /// Subtitle
                   const Text(
-                    "Share What You Have.",
+                    "Find What You Need.\n"
+                        "Share What You Have.",
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.white ,
                       fontSize: 30,
                       fontFamily: "Mont",
                       fontWeight: FontWeight.w300,
@@ -106,6 +96,7 @@ class NonStudentLogin extends StatelessWidget {
                   // Use a Spacer to push the remaining buttons to the very bottom
                   const Spacer(),
 
+                  // --- "signup" Button ---
                   // --- "signup" Button ---
                   SizedBox(
                     width: double.infinity,
@@ -122,7 +113,7 @@ class NonStudentLogin extends StatelessWidget {
                             padding: EdgeInsets.only(
                               bottom: MediaQuery.of(context).viewInsets.bottom,
                             ),
-                            child: StunifySignUpModalContent(), // Your signup form widget
+                            child: SignupForm(), // Your signup form widget
                           ),
                         );
                       },
@@ -140,6 +131,7 @@ class NonStudentLogin extends StatelessWidget {
                       ),
                     ),
                   ),
+
 
                   const SizedBox(height: 20),
 
@@ -162,9 +154,59 @@ class NonStudentLogin extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   // Add padding to ensure buttons clear the bottom edge of the screen
                   const SizedBox(height: 20),
+                  RichText(
+                    textAlign: TextAlign.left, // whole widget aligns to the left
+                    text: TextSpan(
+                      style: const TextStyle(
+                        fontFamily: 'Mont',
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: "By signing up you agree to Stunify ",
+                        ),
+                        TextSpan(
+                          text: "terms of service",
+                          style: const TextStyle(
+                            decoration: TextDecoration.underline,
+                            color: Colors.blueAccent,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                ),
+                                builder: (context) => TermsBottomSheet(),
+                              );
+                            },
+                        ),
+                        const TextSpan(
+                          text: "\n",
+                        ),
+                        WidgetSpan(
+                          child: Align(
+                            alignment: Alignment.center, // only the second line centered
+                            child: Text(
+                              "and other privacy policy details",
+                              style: const TextStyle(
+                                fontFamily: 'Mont',
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+
                 ],
               ),
             ),

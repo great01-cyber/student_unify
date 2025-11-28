@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../AuthPage.dart';
 import '../Home/Homepage.dart';
+import '../Login/StudentPage.dart';
 import '../onboardingScreen.dart'; // Assuming this path
 
 class AuthWrapper extends StatelessWidget {
@@ -64,12 +65,12 @@ class AuthWrapper extends StatelessWidget {
               } else {
                 // If not verified, route to a verification check screen or back to AuthPage with a message.
                 // For simplicity, we route to the AuthPage.
-                return const AuthPage();
+                return const StudentLogin();
               }
             }
 
             // User is logged out
-            return const AuthPage();
+            return const StudentLogin();
           },
         );
       },

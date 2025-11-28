@@ -26,7 +26,7 @@ class _WelcomePageState extends State<WelcomePage> {
     });
 
     // 3. 🎯 Add the Timer logic for automatic navigation (e.g., after 3 seconds)
-    Timer(const Duration(seconds: 8), () {
+    Timer(const Duration(seconds: 4), () {
       if (mounted) {
         // Navigate to the next screen after the delay
         Navigator.of(context).pushReplacement(
@@ -56,7 +56,7 @@ class _WelcomePageState extends State<WelcomePage> {
                   color: Color(0xFFeb5777),
                   fontSize: 40,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Quicksand',
+                  fontFamily: 'Mont',
                 ),
               ),
             ),
