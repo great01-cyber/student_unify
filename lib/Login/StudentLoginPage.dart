@@ -8,6 +8,17 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../Home/Homepage.dart';
 
 
+class SignupModal {
+  static void show(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent, // Use transparent for overlay effect
+      builder: (context) => const Studentloginpage(),
+    );
+  }
+}
+
 class Studentloginpage extends StatefulWidget {
   const Studentloginpage({super.key});
 
