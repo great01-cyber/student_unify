@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:student_unify_app/Login/NonStudentLogin.dart';
 import 'package:student_unify_app/Login/StudentPage.dart';
 
+import 'Login/StudentLoginPage.dart';
+
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
 
@@ -40,7 +42,7 @@ class OnboardingScreen extends StatelessWidget {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => StudentLogin()),  // ← replace with your screen
+                            MaterialPageRoute(builder: (context) => StudentLoginPage()),  // ← replace with your screen
                           );
                         },
                         child: Container(

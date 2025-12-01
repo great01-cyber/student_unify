@@ -1,235 +1,233 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/gestures.dart';
+import 'package:student_unify_app/Login/StudentLoginPage.dart';
+import 'package:student_unify_app/Login/signup.dart';
 
-import '../Home/Homepage.dart';
+import 'TermPage.dart';
 
-class Studentloginpage extends StatefulWidget {
-  const Studentloginpage({super.key});
-
-  @override
-  State<Studentloginpage> createState() => _StudentloginpageState();
-}
-
-class _StudentloginpageState extends State<Studentloginpage> with SingleTickerProviderStateMixin {
-  bool _isLoading = false;
-  final _formKey = GlobalKey<FormState>();
-
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-
-  late AnimationController _animationController;
-  late Animation<double> _opacityAnimation;
-
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-
-    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    setState(() => _isLoading = true);
-
-    try {
-      UserCredential userCred =
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
-
-      User? user = userCred.user;
-
-      if (user != null && !user.emailVerified) {
-        await _auth.signOut();
-        _showSnackbar("Email not verified. Check your inbox or spam folder.");
-        return;
-      }
-
-      final fcmToken = await FirebaseMessaging.instance.getToken();
-      if (user != null && fcmToken != null) {
-        await _firestore.collection('users').doc(user.uid).update({'fcmToken': fcmToken});
-      }
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => Homepage()),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      _showSnackbar(e.message ?? "Login failed.");
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Widget _buildInput({
-    required String label,
-    required IconData icon,
-    required TextEditingController controller,
-    bool isPassword = false,
-    required String? Function(String?) validator,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: TextFormField(
-        controller: controller,
-        obscureText: isPassword,
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.blue),
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        validator: validator,
-      ),
-    );
-  }
+class StudentLogin extends StatelessWidget {
+  const StudentLogin({super.key});
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF1E88E5);
-
-    return SafeArea(
-      child: FadeTransition(
-        opacity: _opacityAnimation,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Close Button
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, size: 28),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-
-                // Logo
-                Center(
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        "assets/images/logon.png",
-                        height: 140,
-                        width: 140,
-                        errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.school, size: 80, color: primaryColor),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Welcome Back',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: primaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // Form
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      _buildInput(
-                        label: "Email",
-                        icon: Icons.email_outlined,
-                        controller: _emailController,
-                        validator: (value) {
-                          if (value == null ||
-                              !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
-                            return 'Enter a valid email.';
-                          }
-                          return null;
-                        },
-                      ),
-                      _buildInput(
-                        label: "Password",
-                        icon: Icons.lock_outline,
-                        controller: _passwordController,
-                        isPassword: true,
-                        validator: (value) {
-                          if (value == null || value.length < 6) {
-                            return 'Password must be at least 6 characters.';
-                          }
-                          return null;
-                        },
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {},
-                          child: const Text("Forgot Password?"),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Login button
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                    "LOG IN",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                ),
-              ],
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        iconTheme: IconThemeData(color: Colors.pinkAccent),
+      ),
+      body: Stack(
+        children: [
+          /// Background Image
+          Positioned.fill(
+            child: Image.asset(
+              "assets/images/image.png", // change to your image path
+              fit: BoxFit.cover,
             ),
           ),
-        ),
+
+          /// Dark overlay for readability (optional)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.4),
+            ),
+          ),
+
+          /// CONTENT
+          SafeArea(
+            // Increased top padding slightly for overall breathing room
+            child: Padding(
+              padding: const EdgeInsets.only(top: 30, left: 30, right: 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // --- Role Selection Buttons ---
+                  Row(
+                    children: [
+                      GestureDetector(
+                          child: Container(
+                            height: 30,
+                            width: 90,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.pinkAccent.withOpacity(0.4),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                  offset: Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              "Student",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.pinkAccent,
+                              ),
+                            ),
+                          )
+                      ),
+                    ],
+                  ),
+
+                  // 🎯 PUSH DOWN: Increased this spacer significantly
+                  const SizedBox(height: 150),
+
+                  const SizedBox(height: 10),
+
+                  /// Subtitle
+                  const Text(
+                    "Find What You Need.\n"
+                        "Share What You Have.",
+                    style: TextStyle(
+                      color: Colors.white ,
+                      fontSize: 30,
+                      fontFamily: "Mont",
+                      fontWeight: FontWeight.w300,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  // The remaining space here is flexible due to 'Expanded' below,
+                  // but we ensure the content above is pushed down.
+
+                  // Use a Spacer to push the remaining buttons to the very bottom
+                  const Spacer(),
+
+                  // --- "signup" Button ---
+                  // --- "signup" Button ---
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true, // makes it full height if needed
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                          ),
+                          builder: (context) => Padding(
+                            padding: EdgeInsets.only(
+                              bottom: MediaQuery.of(context).viewInsets.bottom,
+                            ),
+                            child: SignupForm(), // Your signup form widget
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "Sign Up",
+                        style: TextStyle(fontSize: 18, fontFamily: "Mont"),
+                      ),
+                    ),
+                  ),
+
+
+                  const SizedBox(height: 20),
+
+                  // --- "I already have an account" Button ---
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true, // makes it full height if needed
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                          ),
+                          builder: (context) => Padding(
+                            padding: EdgeInsets.only(
+                              bottom: MediaQuery.of(context).viewInsets.bottom,
+                            ),
+                            child: StudentLoginPage(), // Your signup form widget
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.pinkAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "I already have an account",
+                        style: TextStyle(fontSize: 18, fontFamily: "Mont"),
+                      ),
+                    ),
+                  ),
+                  // Add padding to ensure buttons clear the bottom edge of the screen
+                  const SizedBox(height: 20),
+                  RichText(
+                    textAlign: TextAlign.left, // whole widget aligns to the left
+                    text: TextSpan(
+                      style: const TextStyle(
+                        fontFamily: 'Mont',
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: "By signing up you agree to Stunify ",
+                        ),
+                        TextSpan(
+                          text: "terms of service",
+                          style: const TextStyle(
+                            decoration: TextDecoration.underline,
+                            color: Colors.blueAccent,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                ),
+                                builder: (context) => TermsBottomSheet(),
+                              );
+                            },
+                        ),
+                        const TextSpan(
+                          text: "\n",
+                        ),
+                        WidgetSpan(
+                          child: Align(
+                            alignment: Alignment.center, // only the second line centered
+                            child: Text(
+                              "and other privacy policy details",
+                              style: const TextStyle(
+                                fontFamily: 'Mont',
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
