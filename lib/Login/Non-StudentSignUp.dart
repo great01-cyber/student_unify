@@ -141,7 +141,7 @@ class StunifySignUpModalContent extends StatelessWidget {
             ),
             label: const Text(
               'Continue with Google',
-              style: TextStyle(color: Colors.black, fontSize: 16),
+              style: TextStyle(color: Colors.black, fontSize: 16, fontFamily: 'Mont'),
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.black,
@@ -166,7 +166,7 @@ class StunifySignUpModalContent extends StatelessWidget {
             ),
             label: const Text(
               'Continue with Facebook',
-              style: TextStyle(color: Colors.black, fontSize: 16),
+              style: TextStyle(color: Colors.black, fontSize: 16, fontFamily: 'Mont'),
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.black,

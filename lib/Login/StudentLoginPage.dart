@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:student_unify_app/Login/signup.dart';
+import 'package:flutter/gestures.dart';
+
 
 import 'Non-StudentSignUp.dart';
 import 'StudentAlreadyAccount.dart';
+import 'TermPage.dart';
 
 class StudentLoginPage extends StatelessWidget {
   const StudentLoginPage({super.key});
@@ -153,21 +156,19 @@ class StudentLoginPage extends StatelessWidget {
                       onPressed: () {
                         showModalBottomSheet(
                           context: context,
-                          isScrollControlled: true, // makes it full height if needed
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                          ),
+                          isScrollControlled: true,
+                          backgroundColor: Colors.white, // Keep transparency to apply custom shape
+                          isDismissible: false,
                           builder: (context) => Padding(
                             padding: EdgeInsets.only(
                               bottom: MediaQuery.of(context).viewInsets.bottom,
                             ),
-                            child: StudentAlreadyAccount(), // Your signup form widget
+                            child: const StudentAlreadyAccount(), // Your login widget
                           ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
+                        backgroundColor: Colors.pinkAccent,
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -176,13 +177,64 @@ class StudentLoginPage extends StatelessWidget {
                       ),
                       child: const Text(
                         "I already have an account",
-                        style: TextStyle(fontSize: 18, fontFamily: "Mont"),
+                        style: TextStyle(fontSize: 18, fontFamily: "Mont", color: Colors.white),
                       ),
                     ),
                   ),
 
+
                   // Add padding to ensure buttons clear the bottom edge of the screen
                   const SizedBox(height: 20),
+                  RichText(
+                    textAlign: TextAlign.left, // whole widget aligns to the left
+                    text: TextSpan(
+                      style: const TextStyle(
+                        fontFamily: 'Mont',
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                      children: [
+                        const TextSpan(
+                          text: "By signing up you agree to Stunify ",
+                        ),
+                        TextSpan(
+                          text: "terms of service",
+                          style: const TextStyle(
+                            decoration: TextDecoration.underline,
+                            color: Colors.pinkAccent,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                ),
+                                builder: (context) => TermsBottomSheet(),
+                              );
+                            },
+                        ),
+                        const TextSpan(
+                          text: "\n",
+                        ),
+                        WidgetSpan(
+                          child: Align(
+                            alignment: Alignment.center, // only the second line centered
+                            child: Text(
+                              "and other privacy policy details",
+                              style: const TextStyle(
+                                fontFamily: 'Mont',
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
                 ],
               ),
             ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:fluttertoast/fluttertoast.dart'; // 🚀 Re-imported for Toast
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Home/Homepage.dart';
 
@@ -13,9 +13,12 @@ class StudentAlreadyAccount extends StatefulWidget {
   State<StudentAlreadyAccount> createState() => _StudentloginpageState();
 }
 
-class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTickerProviderStateMixin {
+class _StudentloginpageState extends State<StudentAlreadyAccount>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
+
+  String? _loginErrorMessage;
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -30,6 +33,8 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
   void initState() {
     super.initState();
 
+    _loadSavedLoginDetails(); // <-- Load saved email/password
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -42,6 +47,20 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
     _animationController.forward();
   }
 
+  // --- Load Saved Email & Password ---
+  Future<void> _loadSavedLoginDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    _emailController.text = prefs.getString("saved_email") ?? "";
+    _passwordController.text = prefs.getString("saved_password") ?? "";
+  }
+
+  // --- Save Email & Password ---
+  Future<void> _saveLoginDetails(String email, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("saved_email", email);
+    await prefs.setString("saved_password", password);
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -50,20 +69,12 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
     super.dispose();
   }
 
-  // 🚀 MODIFIED: Implements message toast using fluttertoast
-  void _showSnackbar(String message) {
-    Fluttertoast.showToast(
-      msg: message,
-      toastLength: Toast.LENGTH_LONG, // Display duration
-      gravity: ToastGravity.BOTTOM,    // Position on screen
-      timeInSecForIosWeb: 3,           // Duration for iOS/Web
-      backgroundColor: Colors.black87,
-      textColor: Colors.white,
-      fontSize: 16.0,
-    );
-  }
-
+  // --- LOGIN FUNCTION ---
   Future<void> _submitForm() async {
+    setState(() {
+      _loginErrorMessage = null;
+    });
+
     if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim();
@@ -77,12 +88,18 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
 
       User? user = userCred.user;
 
-      // Email not verified?
       if (user != null && !user.emailVerified) {
         await _auth.signOut();
-        _showSnackbar("Email not verified. Check your inbox or spam folder.");
+        setState(() {
+          _loginErrorMessage =
+          "Email not verified. Check your inbox or spam folder.";
+          _isLoading = false;
+        });
         return;
       }
+
+      // --- Save login details to SharedPreferences ---
+      await _saveLoginDetails(email, password);
 
       // Update FCM Token
       try {
@@ -96,53 +113,62 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
         debugPrint("FCM Token error: $e");
       }
 
-      // Navigate
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => Homepage()),
         );
       }
-
     } on FirebaseAuthException catch (e) {
-      // --- Correct error messages ---
-      String message = "Login failed";
+      String message;
 
       switch (e.code) {
         case "user-not-found":
-          message = "No user found for that email.";
+          message = "Email not found.";
           break;
         case "wrong-password":
-          message = "Wrong password entered.";
+          message = "Incorrect password.";
           break;
         case "invalid-email":
-          message = "The email format is invalid.";
+          message = "Invalid email format.";
+          break;
+        case "invalid-credential":
+          message = "Invalid email or password.";
           break;
         case "user-disabled":
           message = "This account has been disabled.";
           break;
         case "too-many-requests":
-          message =
-          "Too many attempts. Please wait a moment before trying again.";
+          message = "Too many attempts. Try again later.";
           break;
         default:
-          message = e.message ?? "An unknown error occurred.";
+          message = "An unknown error occurred.";
       }
 
-      _showSnackbar(message);
+      if (mounted) {
+        setState(() {
+          _loginErrorMessage = message;
+          _isLoading = false;
+        });
+      }
 
     } catch (e) {
-      _showSnackbar("An unexpected error occurred.");
-    } finally {
       if (mounted) {
+        setState(() {
+          _loginErrorMessage = "An unexpected error occurred.";
+          _isLoading = false;
+        });
+      }
+    } finally {
+      if (mounted && _loginErrorMessage != null) {
         setState(() => _isLoading = false);
       }
     }
   }
 
-
   Widget _buildInput({
     required String label,
     required IconData icon,
+    required Color color,
     required TextEditingController controller,
     bool isPassword = false,
     required String? Function(String?) validator,
@@ -153,7 +179,7 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
         controller: controller,
         obscureText: isPassword,
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.blue),
+          prefixIcon: Icon(icon, color: color),
           labelText: label,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -166,7 +192,7 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF1E88E5);
+    const Color primaryColor = Colors.pinkAccent;
 
     return SafeArea(
       child: FadeTransition(
@@ -177,16 +203,14 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Close Button
                 Align(
                   alignment: Alignment.centerRight,
                   child: IconButton(
-                    icon: const Icon(Icons.close, size: 28),
+                    icon: const Icon(Icons.close, size: 28, color: primaryColor),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
 
-                // Logo
                 Center(
                   child: Column(
                     children: [
@@ -204,6 +228,7 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
                           color: primaryColor,
+                          fontFamily: 'Mont',
                         ),
                       ),
                     ],
@@ -212,7 +237,6 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
 
                 const SizedBox(height: 40),
 
-                // Form
                 Form(
                   key: _formKey,
                   child: Column(
@@ -220,6 +244,7 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
                       _buildInput(
                         label: "Email",
                         icon: Icons.email_outlined,
+                        color: primaryColor,
                         controller: _emailController,
                         validator: (value) {
                           if (value == null ||
@@ -233,6 +258,7 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
                         label: "Password",
                         icon: Icons.lock_outline,
                         controller: _passwordController,
+                        color: primaryColor,
                         isPassword: true,
                         validator: (value) {
                           if (value == null || value.length < 6) {
@@ -245,16 +271,25 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () {},
-                          child: const Text("Forgot Password?"),
+                          child: const Text("Forgot Password?",
+                              style: TextStyle(fontFamily: 'Mont')),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                if (_loginErrorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Text(
+                      _loginErrorMessage!,
+                      style: const TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
 
-                // Login button
                 ElevatedButton(
                   onPressed: _isLoading ? null : _submitForm,
                   style: ElevatedButton.styleFrom(
@@ -271,7 +306,8 @@ class _StudentloginpageState extends State<StudentAlreadyAccount> with SingleTic
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white),
+                        color: Colors.white,
+                        fontFamily: 'Mont'),
                   ),
                 ),
               ],

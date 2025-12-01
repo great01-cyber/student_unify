@@ -64,6 +64,7 @@ dev_dependencies:
   provider: ^6.1.5+1
   fl_chart: ^1.1.1
   fluttertoast: ^9.0.0
+  oktoast: ^3.4.0
 
 
 

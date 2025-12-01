@@ -83,7 +83,7 @@ class StudentLogin extends StatelessWidget {
                     "Find What You Need.\n"
                         "Share What You Have.",
                     style: TextStyle(
-                      color: Colors.white ,
+                      color: Colors.white,
                       fontSize: 30,
                       fontFamily: "Mont",
                       fontWeight: FontWeight.w300,
@@ -128,7 +128,7 @@ class StudentLogin extends StatelessWidget {
                       ),
                       child: const Text(
                         "Sign Up",
-                        style: TextStyle(fontSize: 18, fontFamily: "Mont"),
+                        style: TextStyle(fontSize: 18, fontFamily: "Mont", color: Colors.pinkAccent),
                       ),
                     ),
                   ),
@@ -158,7 +158,7 @@ class StudentLogin extends StatelessWidget {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.pinkAccent,
-                        foregroundColor: Colors.white,
+                        foregroundColor: Colors.pinkAccent,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
