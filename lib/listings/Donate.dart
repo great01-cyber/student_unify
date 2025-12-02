@@ -224,6 +224,7 @@ class _DonateState extends State<Donate> {
         locationAddress: _selectedLocationInfo,
         latitude: _selectedLatLng?.latitude,
         longitude: _selectedLatLng?.longitude,
+        donorId: '',
       );
 
       // 5. Convert model to Firestore-ready map (using toJson/toMap)

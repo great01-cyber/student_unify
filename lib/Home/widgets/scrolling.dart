@@ -11,7 +11,7 @@ enum ListingType { borrow, lend, donate, exchange, sell }
 // 2. Fallback Image Widget (Helper)
 Widget _imageFallback() {
   return Container(
-    height: 100,
+    height: 150,
     width: double.infinity,
     color: Colors.grey[200],
     child: const Center(
@@ -21,21 +21,26 @@ Widget _imageFallback() {
 }
 
 // 3. Modified Item Card Widget
-Widget _buildItemCard(BuildContext context, dynamic item, ListingType type) {
-  final imageUrl = (item.imageUrls.isNotEmpty && item.imageUrls.first.isNotEmpty) ? item.imageUrls.first : null;
+Widget _buildItemCard(
+    BuildContext context,
+    dynamic item,
+    ListingType type,
+    ) {
+  final imageUrl = (item.imageUrls.isNotEmpty && item.imageUrls.first.isNotEmpty)
+      ? item.imageUrls.first
+      : null;
 
-  // Dynamic Text based on Listing Type
-  String actionText;
-  Color actionColor;
-
-  // Check if item has 'price' (like Donation/Sell)
+  // Extract price safely
   double? price;
   try {
-    // Attempt to access price, might throw if model doesn't have it (e.g., LendModel)
     price = item.price as double?;
   } catch (e) {
     price = null;
   }
+
+  // Determine action text and color based on listing type
+  final String actionText;
+  final Color actionColor;
 
   switch (type) {
     case ListingType.lend:
@@ -44,10 +49,12 @@ Widget _buildItemCard(BuildContext context, dynamic item, ListingType type) {
       break;
     case ListingType.donate:
       actionText = 'FREE';
-      actionColor = Colors.teal.shade700; // Use Teal for FREE/Donation
+      actionColor = Colors.teal.shade700;
       break;
     case ListingType.sell:
-      actionText = price != null && price! > 0 ? '£${price.toStringAsFixed(2)}' : 'Selling (Free)';
+      actionText = price != null && price! > 0
+          ? '£${price.toStringAsFixed(2)}'
+          : 'Selling (Free)';
       actionColor = Colors.purple.shade700;
       break;
     case ListingType.exchange:
@@ -61,86 +68,232 @@ Widget _buildItemCard(BuildContext context, dynamic item, ListingType type) {
       break;
   }
 
-
   return GestureDetector(
     onTap: () {
-      // Navigate to detail page, passing the specific item instance
-      // We assume ItemDetailPage can handle the Donation model structure (it currently does)
-      Navigator.push(context, MaterialPageRoute(builder: (context) => ItemDetailPage(item: item as Donation)));
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ItemDetailPage(item: item as Donation),
+        ),
+      );
     },
     child: Container(
       width: 160,
+      height: 303,
       margin: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 8.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 2, blurRadius: 5, offset: const Offset(0, 3))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- Image/Fallback Section ---
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-            child: imageUrl != null
-                ? Image.network(
-              imageUrl,
-              height: 100,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(height: 100, color: Colors.grey[200], child: const Center(child: CircularProgressIndicator(strokeWidth: 2)));
-              },
-              errorBuilder: (context, error, stackTrace) => _imageFallback(),
-            )
-                : _imageFallback(),
-          ),
-
-          // --- Details Section ---
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 2),
-                Text(item.category, style: TextStyle(fontSize: 12, color: Colors.grey[600]), overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-
-                // Location Row
-                Row(children: [
-                  const Icon(Icons.location_on, size: 14, color: Colors.blueGrey),
-                  const SizedBox(width: 4),
-                  Expanded(child: Text(item.locationAddress ?? 'Unknown', style: const TextStyle(fontSize: 11, color: Colors.blueGrey), overflow: TextOverflow.ellipsis)),
-                ]),
-                const SizedBox(height: 4),
-
-                // --- Dynamic Action/Type Text ---
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: actionColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    actionText,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: actionColor,
-                    ),
-                    // Just
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildImageSection(imageUrl),
+          const SizedBox(height: 6),
+          _buildDetailsSection(item, actionText, actionColor),
         ],
       ),
     ),
   );
 }
+
+// Image section with loading and error handling
+Widget _buildImageSection(String? imageUrl) {
+  return ClipRRect(
+    borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+    child: imageUrl != null
+        ? Image.network(
+      imageUrl,
+      height: 100,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          height: 100,
+          color: Colors.grey[200],
+          child: const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) => _imageFallback(),
+    )
+        : _imageFallback(),
+  );
+}
+
+// Details section with item info and donator
+Widget _buildDetailsSection(
+    dynamic item,
+    String actionText,
+    Color actionColor,
+    ) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildItemInfo(item),
+        const SizedBox(height: 4),
+        _buildLocationInfo(item),
+        const SizedBox(height: 4),
+        _buildActionLabel(actionText, actionColor),
+        const SizedBox(height: 6),
+        _buildDonatorInfo(item.donorId),
+      ],
+    ),
+  );
+}
+
+// Item title and category
+Widget _buildItemInfo(dynamic item) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        item.title,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+      const SizedBox(height: 2),
+      Text(
+        item.category,
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.grey[600],
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    ],
+  );
+}
+
+// Location info with icon
+Widget _buildLocationInfo(dynamic item) {
+  return Row(
+    children: [
+      const Icon(Icons.location_on, size: 14, color: Colors.blueGrey),
+      const SizedBox(width: 4),
+      Expanded(
+        child: Text(
+          item.locationAddress ?? 'Unknown',
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.blueGrey,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ],
+  );
+}
+
+// Action label (price/status)
+Widget _buildActionLabel(String actionText, Color actionColor) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: actionColor.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Text(
+      actionText,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        color: actionColor,
+      ),
+    ),
+  );
+}
+
+// Donator information with avatar
+Widget _buildDonatorInfo(String donorId) {
+  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    future: FirebaseFirestore.instance.collection('users').doc(donorId).get(),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const SizedBox(
+          height: 20,
+          child: LinearProgressIndicator(minHeight: 2),
+        );
+      }
+
+      if (snapshot.hasError ||
+          !snapshot.hasData ||
+          snapshot.data!.data() == null) {
+        return const SizedBox();
+      }
+
+      final userData = snapshot.data!.data()!;
+      final donatorName = userData['displayName'] ?? 'Unknown';
+      final donatorUniversity = userData['university'] ?? 'Unknown';
+      final photoUrl = userData['photoUrl'] ?? '';
+
+      return Row(
+        children: [
+          _buildDonatorAvatar(photoUrl),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildDonatorDetails(donatorName, donatorUniversity),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+// Donator avatar
+Widget _buildDonatorAvatar(String photoUrl) {
+  return CircleAvatar(
+    radius: 10,
+    backgroundColor: Colors.grey[300],
+    backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+    child: photoUrl.isEmpty
+        ? const Icon(Icons.person, size: 5, color: Colors.white)
+        : null,
+  );
+}
+
+// Donator name and university
+Widget _buildDonatorDetails(String name, String university) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        name,
+        style: const TextStyle(
+          fontSize: 8,
+          fontWeight: FontWeight.w100,
+          color: Colors.black,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+      Text(
+        university,
+        style: const TextStyle(
+          fontSize: 10,
+          color: Colors.blueGrey,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    ],
+  );
+}
+
+
 
 
 // ------------------- HorizontalItemList -------------------
