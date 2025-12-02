@@ -1,20 +1,30 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-const String imageLamp = "assets/images/verified.png";
-const String imageBook = "assets/images/verified.png";
-const String imageCommunity = "assets/images/verified.png";
-const String imageTools = "assets/images/verified.png";
-const String imageTreasure = "assets/images/verified.png";
-const String imageLibrary = "assets/images/verified.png";
-const String imageSwap = "assets/images/verified.png";
+const String imageLamp = "assets/images/lamp.png";
+const String imageBook = "assets/images/books.png";
+const String imageCommunity = "assets/images/partners.png";
+const String imageTools = "assets/images/collaboration.png";
+const String imageTreasure = "assets/images/empathy.png";
+const String imageLibrary = "assets/images/library.png";
+const String imageSwap = "assets/images/borrow.png";
 
 class QuoteItem {
   final String quote;
   final String imagePath;
   final String tagline;
+  final List<Color> gradientColors;
+  final Color textColor;
+  final Color taglineColor;
 
-  QuoteItem({required this.quote, required this.imagePath, required this.tagline});
+  QuoteItem({
+    required this.quote,
+    required this.imagePath,
+    required this.tagline,
+    required this.gradientColors,
+    required this.textColor,
+    required this.taglineColor,
+  });
 }
 
 class QuoteCarousel extends StatefulWidget {
@@ -25,42 +35,63 @@ class QuoteCarousel extends StatefulWidget {
 }
 
 class _QuoteCarouselState extends State<QuoteCarousel> {
-  // Full list of 7 quotes
+  // Full list of 7 quotes with unique color schemes
   final List<QuoteItem> _items = [
     QuoteItem(
       quote: "Your used lamp could brighten someone else's study space.",
       imagePath: imageLamp,
       tagline: "Shine On!",
+      gradientColors: [const Color(0xFFFFE082), const Color(0xFFFFB300)], // Warm yellow/amber
+      textColor: const Color(0xFF5D4037),
+      taglineColor: const Color(0xFF8D6E63),
     ),
     QuoteItem(
       quote: "One student's finished textbook is another's perfect head start.",
       imagePath: imageBook,
       tagline: "Knowledge is Shared.",
+      gradientColors: [const Color(0xFF81C784), const Color(0xFF66BB6A)], // Fresh green
+      textColor: const Color(0xFF1B5E20),
+      taglineColor: const Color(0xFF2E7D32),
     ),
     QuoteItem(
       quote: "The things you pass on don't just clear your clutter; they build our community.",
       imagePath: imageCommunity,
       tagline: "Building Community.",
+      gradientColors: [const Color(0xFF90CAF9), const Color(0xFF42A5F5)], // Sky blue
+      textColor: const Color(0xFF0D47A1),
+      taglineColor: const Color(0xFF1565C0),
     ),
     QuoteItem(
       quote: "Share a tool, save a trip to the store. Together, we make student life easier.",
       imagePath: imageTools,
       tagline: "Practical Help.",
+      gradientColors: [const Color(0xFFFF8A65), const Color(0xFFFF7043)], // Coral orange
+      textColor: const Color(0xFFBF360C),
+      taglineColor: const Color(0xFFD84315),
     ),
     QuoteItem(
       quote: "Give your old treasures a new campus life.",
       imagePath: imageTreasure,
       tagline: "Sustainable Swaps.",
+      gradientColors: [const Color(0xFFCE93D8), const Color(0xFFAB47BC)], // Purple
+      textColor: const Color(0xFF4A148C),
+      taglineColor: const Color(0xFF6A1B9A),
     ),
     QuoteItem(
       quote: "The greatest resource on campus isn't just the library—it's what we share.",
       imagePath: imageLibrary,
       tagline: "True Resourcefulness.",
+      gradientColors: [const Color(0xFF80DEEA), const Color(0xFF26C6DA)], // Turquoise
+      textColor: const Color(0xFF006064),
+      taglineColor: const Color(0xFF00838F),
     ),
     QuoteItem(
       quote: "Swap, save, and succeed. Every shared item is a step toward a lighter load.",
       imagePath: imageSwap,
       tagline: "Lighter Load, Bigger Wins.",
+      gradientColors: [const Color(0xFFF48FB1), const Color(0xFFEC407A)], // Pink
+      textColor: const Color(0xFF880E4F),
+      taglineColor: const Color(0xFFC2185B),
     ),
   ];
 
@@ -103,13 +134,17 @@ class _QuoteCarouselState extends State<QuoteCarousel> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F0FF), // Light background for contrast
+        gradient: LinearGradient(
+          colors: item.gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(20.0),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8.0,
-            offset: Offset(0, 4),
+            color: item.gradientColors[1].withOpacity(0.4),
+            blurRadius: 12.0,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -127,12 +162,21 @@ class _QuoteCarouselState extends State<QuoteCarousel> {
                 errorBuilder: (context, error, stackTrace) {
                   // Fallback for missing images
                   return Container(
-                    color: Colors.blueGrey.shade100,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          item.gradientColors[0].withOpacity(0.3),
+                          item.gradientColors[1].withOpacity(0.3),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
                     child: Center(
-                      child: Text(
-                        item.imagePath.replaceAll('assets/', '').replaceAll('.jpg', ''), // Display image name
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 10),
+                      child: Icon(
+                        Icons.image_outlined,
+                        size: 48,
+                        color: item.textColor.withOpacity(0.5),
                       ),
                     ),
                   );
@@ -155,7 +199,8 @@ class _QuoteCarouselState extends State<QuoteCarousel> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey[800],
+                      color: item.textColor,
+                      height: 1.3,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -164,7 +209,8 @@ class _QuoteCarouselState extends State<QuoteCarousel> {
                     style: TextStyle(
                       fontSize: 12,
                       fontStyle: FontStyle.italic,
-                      color: Colors.blueGrey[600],
+                      fontWeight: FontWeight.w600,
+                      color: item.taglineColor,
                     ),
                   ),
                 ],
@@ -191,4 +237,3 @@ class _QuoteCarouselState extends State<QuoteCarousel> {
     );
   }
 }
-// ---
