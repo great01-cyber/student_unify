@@ -65,6 +65,9 @@ dev_dependencies:
   fl_chart: ^1.1.1
   fluttertoast: ^9.0.0
   oktoast: ^3.4.0
+  timeago: ^3.7.1
+  firebase_app_check:
+
 
 
 

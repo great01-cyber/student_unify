@@ -19,6 +19,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/New One.dart';
+
 // 🎯 Ensure this path matches where you saved your Donation model
 
 class Donate extends StatefulWidget {
@@ -168,48 +170,63 @@ class _DonateState extends State<Donate> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('You must be signed in to post a donation.'), backgroundColor: Colors.red.shade700),
+        SnackBar(
+          content: const Text('You must be signed in to post a donation.'),
+          backgroundColor: Colors.red.shade700,
+        ),
       );
       return;
     }
 
     if (_images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Please add at least one image.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
+        SnackBar(
+          content: const Text(
+            'Please add at least one image.',
+            style: TextStyle(fontFamily: 'Quicksand'),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
       );
       return;
     }
 
     if (_selectedLocationInfo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Please confirm your location.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
+        SnackBar(
+          content: const Text(
+            'Please confirm your location.',
+            style: TextStyle(fontFamily: 'Quicksand'),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
       );
       return;
     }
 
     setState(() => _isSubmitting = true);
-    // show progress
-    showDialog(context: context, barrierDismissible: false, builder: (_) => WillPopScope(onWillPop: () async => false, child: const Center(child: CircularProgressIndicator())));
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => WillPopScope(
+        onWillPop: () async => false,
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+    );
 
     try {
-      // 1. Get donor info (optional, but good practice)
       String? donorName = user.displayName;
       try {
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
         if (userDoc.exists) {
           donorName = userDoc.data()?['displayName'] as String? ?? user.displayName;
         }
-      } catch (e) {
-        // Fallback to Firebase Auth display name
-      }
+      } catch (e) {}
 
-      // 2. Prepare Firestore document ID
       final String docId = _firestore.collection('donations').doc().id;
-
-      // 3. Upload images
       final imageUrls = await _uploadImagesToFirebase(docId);
 
-      // 4. Create Donation Model Instance (using the clean data structure)
       final newDonation = Donation(
         id: docId,
         category: _selectedCategory ?? 'Unspecified',
@@ -224,33 +241,48 @@ class _DonateState extends State<Donate> {
         locationAddress: _selectedLocationInfo,
         latitude: _selectedLatLng?.latitude,
         longitude: _selectedLatLng?.longitude,
-        donorId: '',
+        donorId: user.uid,
       );
 
-      // 5. Convert model to Firestore-ready map (using toJson/toMap)
       final Map<String, dynamic> donationData = newDonation.toJson();
-
-      // 6. Add donor metadata which isn't part of the core Donation model
       donationData['donorId'] = user.uid;
       donationData['donorEmail'] = user.email;
       donationData['donorName'] = donorName;
 
-      // 7. Save to Firestore
       await _firestore.collection('donations').doc(docId).set(donationData);
 
-      // 8. Persist location locally
       final locString = _selectedLatLng != null
           ? '${_selectedLatLng!.latitude},${_selectedLatLng!.longitude}||${_selectedLocationInfo ?? ''}'
           : (_selectedLocationInfo ?? '');
       await _persistLocationString(locString);
 
-      // 9. Done
-      Navigator.of(context).pop(); // close progress
+      // 🎯 Send notifications to nearby users
+      final notificationService = NotificationService();
+      final notificationCount = await notificationService.notifyNearbyUsers(
+        donationId: docId,
+        donationData: donationData,
+        maxDistanceKm: 16.0, // ~10 miles
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
       setState(() => _isSubmitting = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Donation submitted!'), backgroundColor: Colors.green.shade700));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Donation submitted! $notificationCount nearby students notified.',
+              style: const TextStyle(fontFamily: 'Quicksand'),
+            ),
+            backgroundColor: Colors.green.shade700,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
 
-      // clear form
       setState(() {
         _images.clear();
         _selectedCategory = null;
@@ -261,10 +293,22 @@ class _DonateState extends State<Donate> {
         _instructionsController.clear();
       });
     } catch (e, st) {
-      Navigator.of(context).pop(); // close progress
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
       setState(() => _isSubmitting = false);
+
       debugPrint('Upload/save error: $e\n$st');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to submit donation: $e'), backgroundColor: Colors.red.shade700));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit donation: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
     }
   }
 
