@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class AppUser {
   final String uid;
   final String email;
@@ -12,6 +11,10 @@ class AppUser {
   final String fcmToken;
   final String city;
 
+  // ✅ Add latitude and longitude
+  final double? latitude;
+  final double? longitude;
+
   AppUser({
     required this.uid,
     required this.email,
@@ -22,6 +25,8 @@ class AppUser {
     required this.city,
     this.displayName,
     this.photoUrl,
+    this.latitude,
+    this.longitude,
   });
 
   // Firestore → AppUser
@@ -33,11 +38,11 @@ class AppUser {
       photoUrl: map['photoUrl'] as String?,
       emailVerified: map['emailVerified'] as bool? ?? false,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-
-      // ✅ Newly added fields
       university: map['university'] as String? ?? '',
       fcmToken: map['fcmToken'] as String? ?? '',
       city: map['city'] as String? ?? '',
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -53,6 +58,8 @@ class AppUser {
       'university': university,
       'fcmToken': fcmToken,
       'city': city,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 }

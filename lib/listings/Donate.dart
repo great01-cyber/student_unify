@@ -217,12 +217,15 @@ class _DonateState extends State<Donate> {
 
     try {
       String? donorName = user.displayName;
+      // Safely fetch displayName from Firestore, if available
       try {
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
         if (userDoc.exists) {
           donorName = userDoc.data()?['displayName'] as String? ?? user.displayName;
         }
-      } catch (e) {}
+      } catch (e) {
+        debugPrint('Error fetching donor name: $e');
+      }
 
       final String docId = _firestore.collection('donations').doc().id;
       final imageUrls = await _uploadImagesToFirebase(docId);
@@ -249,6 +252,7 @@ class _DonateState extends State<Donate> {
       donationData['donorEmail'] = user.email;
       donationData['donorName'] = donorName;
 
+      // 1. Save the main donation document
       await _firestore.collection('donations').doc(docId).set(donationData);
 
       final locString = _selectedLatLng != null
@@ -256,26 +260,27 @@ class _DonateState extends State<Donate> {
           : (_selectedLocationInfo ?? '');
       await _persistLocationString(locString);
 
-      // 🎯 Send notifications to nearby users
+      // 2. 🎯 Trigger the Cloud Function asynchronously
       final notificationService = NotificationService();
-      final notificationCount = await notificationService.notifyNearbyUsers(
+      await notificationService.triggerNearbyNotification(
         donationId: docId,
         donationData: donationData,
-        maxDistanceKm: 16.0, // ~10 miles
-      );
+      ); // No return value expected here
 
       if (mounted) {
+        // Dismiss the loading dialog
         Navigator.of(context).pop();
       }
 
       setState(() => _isSubmitting = false);
 
       if (mounted) {
+        // 3. ❌ REMOVED: $notificationCount is no longer available/needed.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Donation submitted! $notificationCount nearby students notified.',
-              style: const TextStyle(fontFamily: 'Quicksand'),
+            content: const Text(
+              'Donation submitted! Nearby students are being notified.',
+              style: TextStyle(fontFamily: 'Quicksand'),
             ),
             backgroundColor: Colors.green.shade700,
             duration: const Duration(seconds: 4),
@@ -283,6 +288,7 @@ class _DonateState extends State<Donate> {
         );
       }
 
+      // Clear form fields
       setState(() {
         _images.clear();
         _selectedCategory = null;
@@ -294,6 +300,7 @@ class _DonateState extends State<Donate> {
       });
     } catch (e, st) {
       if (mounted) {
+        // Dismiss the loading dialog on error
         Navigator.of(context).pop();
       }
 

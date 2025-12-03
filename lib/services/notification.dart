@@ -20,7 +20,7 @@ Future<void> saveUserFCMToken() async {
 }
 
 // -------------------------------
-// 2. REQUEST NOTIFICATION PERMISSION
+// 2. REQUEST NOTIFICATION PERMISSIONåå
 // -------------------------------
 void requestPermission() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;

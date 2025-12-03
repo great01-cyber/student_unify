@@ -2,35 +2,71 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:student_unify_app/services/Authwrapper.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:student_unify_app/welcome.dart';
+import 'package:student_unify_app/services/notification.dart';
 
 import 'firebase_options.dart';
 import 'onboardingScreen.dart';
+import 'welcome.dart';
+import 'services/Authwrapper.dart';
+
+
+// ---------------------------------------------------
+// 1. BACKGROUND FCM HANDLER (REQUIRED)
+// ---------------------------------------------------
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await firebaseMessagingBackgroundHandler(message);
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
+  // ---------------------------------------------------
+  // 2. Initialize Firebase
+  // ---------------------------------------------------
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Activate Firebase App Check
+  // ---------------------------------------------------
+  // 3. Activate Firebase App Check
+  // ---------------------------------------------------
   await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.playIntegrity, // Android
-     //iosProvider: IOSProvider.deviceCheck, // optional for iOS
+    androidProvider: AndroidProvider.playIntegrity,
+    appleProvider: AppleProvider.appAttest,
   );
 
-  // Get initial push message (optional)
-  await FirebaseMessaging.instance.getInitialMessage();
+  // ---------------------------------------------------
+  // 4. Register background message handler
+  // ---------------------------------------------------
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Shared preferences to check onboarding
+  // ---------------------------------------------------
+  // 5. Request Notification Permission
+  // ---------------------------------------------------
+  requestPermission();
+
+  // ---------------------------------------------------
+  // 6. Initialize Local Notifications
+  // ---------------------------------------------------
+  await initInfo();
+
+  // ---------------------------------------------------
+  // 7. Save this device's FCM token in Firestore
+  // ---------------------------------------------------
+  await saveUserFCMToken();
+
+  // ---------------------------------------------------
+  // 8. Check onboarding screen
+  // ---------------------------------------------------
   final prefs = await SharedPreferences.getInstance();
   final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
 
-  // Run the app
+  // ---------------------------------------------------
+  // 9. Run App
+  // ---------------------------------------------------
   runApp(MyApp(seenOnboarding: seenOnboarding));
 }
 
@@ -42,7 +78,6 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      // If user hasn't seen onboarding -> show OnboardingScreen, otherwise AuthWrapper
       home: seenOnboarding ? const AuthWrapper() : WelcomePage(),
     );
   }
