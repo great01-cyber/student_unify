@@ -67,6 +67,7 @@ dev_dependencies:
   oktoast: ^3.4.0
   timeago: ^3.7.1
   firebase_app_check:
+  cloud_functions: ^6.0.4
 
 
 

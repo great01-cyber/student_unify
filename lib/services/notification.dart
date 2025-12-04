@@ -14,24 +14,21 @@ Future<void> saveUserFCMToken() async {
   final token = await FirebaseMessaging.instance.getToken();
   if (token == null) return;
 
-  await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-    'fcmToken': token,
-  }, SetOptions(merge: true));
+  await FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .set({'fcmToken': token}, SetOptions(merge: true));
 }
 
 // -------------------------------
-// 2. REQUEST NOTIFICATION PERMISSIONåå
+// 2. REQUEST NOTIFICATION PERMISSION
 // -------------------------------
 void requestPermission() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
   NotificationSettings setting = await messaging.requestPermission(
     alert: true,
-    announcement: false,
     badge: true,
-    carPlay: false,
-    criticalAlert: false,
-    provisional: false,
     sound: true,
   );
 
@@ -49,15 +46,14 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 Future<void> initInfo() async {
-  // Android setup
   const AndroidInitializationSettings androidInitialize =
   AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  // iOS setup
-  const DarwinInitializationSettings iosInitialize = DarwinInitializationSettings();
+  const DarwinInitializationSettings iosInitialize =
+  DarwinInitializationSettings();
 
-  // Both platforms
-  const InitializationSettings initializationSettings = InitializationSettings(
+  const InitializationSettings initializationSettings =
+  InitializationSettings(
     android: androidInitialize,
     iOS: iosInitialize,
   );
@@ -69,20 +65,19 @@ Future<void> initInfo() async {
       String? payload = response.payload;
       if (payload != null) {
         debugPrint('Tapped Notification Payload: $payload');
-        // Example navigation (uncomment and adjust)
-        // Navigator.pushNamed(globalContext, '/detail', arguments: payload);
       }
     },
   );
 
-  // Listen for foreground FCM messages
+  // Listen for foreground messages
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     print("📩 Received a foreground message");
 
     if (message.notification != null) {
       String title = message.notification!.title ?? "No Title";
       String body = message.notification!.body ?? "No Body";
-      String payload = message.data.isNotEmpty ? message.data.toString() : "No Payload";
+      String payload =
+      message.data.isNotEmpty ? message.data.toString() : "No Payload";
 
       showNotification(title, body, payload);
     }
@@ -92,8 +87,13 @@ Future<void> initInfo() async {
 // --------------------------------------------
 // 4. SHOW LOCAL NOTIFICATION WITH A PAYLOAD
 // --------------------------------------------
-Future<void> showNotification(String title, String body, String payload) async {
-  const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+Future<void> showNotification(
+    String title, String body, String payload) async {
+  // SAFE 32-bit notification ID
+  int id = DateTime.now().millisecondsSinceEpoch % 2147483647;
+
+  const AndroidNotificationDetails androidDetails =
+  AndroidNotificationDetails(
     'high_importance_channel',
     'High Importance Notifications',
     channelDescription: 'Used for important notifications.',
@@ -107,7 +107,7 @@ Future<void> showNotification(String title, String body, String payload) async {
   );
 
   await flutterLocalNotificationsPlugin.show(
-    DateTime.now().microsecondsSinceEpoch ~/ 1000, // unique ID
+    id,
     title,
     body,
     notificationDetails,
@@ -116,9 +116,10 @@ Future<void> showNotification(String title, String body, String payload) async {
 }
 
 // ------------------------------------------------
-// 5. REQUIRED - HANDLE BACKGROUND FCM MESSAGES
+// 5. REQUIRED - BACKGROUND MESSAGE HANDLER
 // ------------------------------------------------
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseMessagingBackgroundHandler(
+    RemoteMessage message) async {
   print("📨 Background message received: ${message.messageId}");
 }

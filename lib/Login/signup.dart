@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:student_unify_app/services/AppUser.dart';
 import 'package:string_similarity/string_similarity.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../Home/widgets/ukUniversities.dart';
 
@@ -87,8 +88,33 @@ class SignupFormState extends State<SignupForm> {
         await firebaseUser.updateDisplayName(displayName);
       }
 
+      // 1️⃣ Get FCM token
       final fcmToken = await FirebaseMessaging.instance.getToken();
 
+      // 2️⃣ Get device location
+      Position? position;
+      try {
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!serviceEnabled) {
+          _showSnackbar('Please enable location services.', isError: true);
+        } else {
+          LocationPermission permission = await Geolocator.checkPermission();
+          if (permission == LocationPermission.denied) {
+            permission = await Geolocator.requestPermission();
+          }
+          if (permission == LocationPermission.denied ||
+              permission == LocationPermission.deniedForever) {
+            _showSnackbar('Location permission denied.', isError: true);
+          } else {
+            position = await Geolocator.getCurrentPosition(
+                desiredAccuracy: LocationAccuracy.high);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error getting location: $e');
+      }
+
+      // 3️⃣ Save user data with latitude & longitude
       final newUser = AppUser(
         uid: firebaseUser.uid,
         email: firebaseUser.email!,
@@ -98,6 +124,8 @@ class SignupFormState extends State<SignupForm> {
         university: university,
         city: city,
         fcmToken: fcmToken ?? '',
+        latitude: position?.latitude,
+        longitude: position?.longitude,
       );
 
       await _firestore.collection('users').doc(firebaseUser.uid).set(newUser.toMap());
@@ -112,7 +140,8 @@ class SignupFormState extends State<SignupForm> {
           errorMessage = 'An account already exists for that email.';
           break;
         case 'weak-password':
-          errorMessage = 'Password is too weak. Must be 8+ chars, contain an uppercase letter, and a number.';
+          errorMessage =
+          'Password is too weak. Must be 8+ chars, contain an uppercase letter, and a number.';
           break;
         case 'invalid-email':
           errorMessage = 'The provided email is invalid.';
@@ -127,6 +156,7 @@ class SignupFormState extends State<SignupForm> {
       setState(() => _isLoading = false);
     }
   }
+
 
   // Input field builder
   Widget _buildInputField({
