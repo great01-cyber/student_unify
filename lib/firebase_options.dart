@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '148834837731',
     projectId: 'studentunifyapp',
     storageBucket: 'studentunifyapp.firebasestorage.app',
-    iosBundleId: 'com.example.studentUnifyApp',
+    iosBundleId: 'com.obinna.studentUnifyApp',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '148834837731',
     projectId: 'studentunifyapp',
     storageBucket: 'studentunifyapp.firebasestorage.app',
-    iosBundleId: 'com.example.studentUnifyApp',
+    iosBundleId: 'com.obinna.studentUnifyApp',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
