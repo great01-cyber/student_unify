@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Post {
   final String id;
@@ -94,6 +95,11 @@ class Post {
   // FROM MAP (Firestore)
   // -----------------------------
   factory Post.fromMap(Map<String, dynamic> map) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
+
+    final List likedBy = map['likedBy'] ?? [];
+    final List bookmarks = map['bookmarks'] ?? [];
+
     return Post(
       id: map['id'] ?? '',
       userId: map['userId'] ?? '',
@@ -104,10 +110,16 @@ class Post {
       text: map['text'] ?? '',
       imageUrl: map['imageUrl'],
       tags: List<String>.from(map['tags'] ?? []),
-      likes: map['likes'] ?? 0,
+
+      // 🔥 TRUE number of likes
+      likes: likedBy.length,
+
+      // 🔥 TRUE number of comments
       comments: map['comments'] ?? 0,
-      isLiked: map['isLiked'] ?? false,
-      isBookmarked: map['isBookmarked'] ?? false,
+
+      // 🔥 FIXED — compute booleans from the arrays
+      isLiked: likedBy.contains(currentUserId),
+      isBookmarked: bookmarks.contains(currentUserId),
     );
   }
 
