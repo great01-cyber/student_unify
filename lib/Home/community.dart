@@ -144,6 +144,7 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
   }
 
   void _openComments(Post post) {
+    final TextEditingController _commentController = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -158,14 +159,105 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          child: CommentPage(
-            post: post,
-            currentUser: widget.currentUser,
+          child: Column(
+            children: [
+              // Optional header
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text('Comments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+
+              // The StreamBuilder goes here
+              Expanded(
+                child: StreamBuilder(
+                  stream: FirebaseFirestore.instance
+                      .collection('posts')
+                      .doc(post.id)
+                      .collection('comments')
+                      .orderBy('timestamp', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                    final comments = snapshot.data!.docs;
+
+                    return ListView.builder(
+                      itemCount: comments.length,
+                      itemBuilder: (_, index) {
+                        final data = comments[index].data() as Map<String, dynamic>;
+                        return ListTile(
+                          leading: CircleAvatar(
+                            child: Text(data['username'][0].toUpperCase()),
+                          ),
+                          title: Text(data['username']),
+                          subtitle: Text(data['text']),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+
+              // Optional input to add a new comment
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _commentController, // define this controller in your CommentPage
+                        decoration: const InputDecoration(
+                          hintText: 'Write a comment...',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.send),
+                      onPressed: () async {
+                        final commentText = _commentController.text.trim();
+                        if (commentText.isEmpty) return;
+
+                        try {
+                          // Add comment to Firestore
+                          await FirebaseFirestore.instance
+                              .collection('posts')
+                              .doc(post.id) // the current post
+                              .collection('comments')
+                              .add({
+                            'username': widget.currentUser.displayName ?? 'Anonymous',
+                            'userId': widget.currentUser.uid,
+                            'text': commentText,
+                            'timestamp': FieldValue.serverTimestamp(),
+                          });
+
+                          // Increment comment count in the post document
+                          await FirebaseFirestore.instance
+                              .collection('posts')
+                              .doc(post.id)
+                              .update({
+                            'comments': FieldValue.increment(1),
+                          });
+
+                          // Clear the TextField after sending
+                          _commentController.clear();
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error posting comment: $e')),
+                          );
+                        }
+                      },
+                    )
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+
 
   void _sharePost(Post post) async {
     final shareText = "Check out this post from the community: \"${post.text}\"";
@@ -926,6 +1018,31 @@ class CommentPage extends StatefulWidget {
   final AppUser currentUser;
 
   const CommentPage({super.key, required this.post, required this.currentUser});
+  Future<void> addComment(String postId, String commentText) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final commentRef = FirebaseFirestore.instance
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .doc();
+
+    await commentRef.set({
+      'id': commentRef.id,
+      'userId': user.uid,
+      'username': user.displayName ?? 'Anonymous',
+      'text': commentText,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    // Also increment comment counter
+    await FirebaseFirestore.instance
+        .collection('posts')
+        .doc(postId)
+        .update({'comments': FieldValue.increment(1)});
+  }
+
 
   @override
   State<CommentPage> createState() => _CommentPageState();
@@ -1070,3 +1187,4 @@ class _CommentPageState extends State<CommentPage> {
     );
   }
 }
+

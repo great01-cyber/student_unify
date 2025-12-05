@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../Models/DonateModel.dart'; // <- your Donation model (Donation.fromJson)
+import '../../Models/DonateModel.dart';
+import 'chatpage.dart'; // <- your Donation model (Donation.fromJson)
 
 // ------------------- ENUM AND HELPER WIDGETS (Moved outside for reusability) -------------------
 
@@ -376,66 +377,166 @@ class HorizontalItemList extends StatelessWidget {
 }
 
 
-// ------------------- ItemDetailPage (accepts Donation) -------------------
 class ItemDetailPage extends StatelessWidget {
   final Donation item;
+
   const ItemDetailPage({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = (item.imageUrls.isNotEmpty && item.imageUrls.first.isNotEmpty) ? item.imageUrls.first : null;
+    final imageUrl = (item.imageUrls.isNotEmpty && item.imageUrls.first.isNotEmpty)
+        ? item.imageUrls.first
+        : null;
+
     return Scaffold(
-      appBar: AppBar(title: Text(item.title), backgroundColor: Colors.white, foregroundColor: Colors.deepPurple, elevation: 0),
+      appBar: AppBar(
+        title: Text(item.title),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.deepPurple,
+        elevation: 0,
+      ),
       body: SingleChildScrollView(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // big image
-          if (imageUrl != null)
-            Image.network(imageUrl, width: double.infinity, height: 300, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(height: 300, color: Colors.grey[200], child: const Center(child: Icon(Icons.photo_library, size: 50))))
-          else
-            Container(height: 300, color: Colors.grey[200], child: const Center(child: Icon(Icons.photo_library, size: 50))),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Expanded(child: Text(item.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
-                // Note: price logic remains here for detail page, showing FREE/£X.XX
-                Text(item.price != null && item.price! > 0 ? '£${item.price!.toStringAsFixed(2)}' : 'FREE', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.teal)),
-              ]),
-              const SizedBox(height: 8),
-              Text(item.category ?? '', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-              const SizedBox(height: 12),
-              Text(item.description ?? '', style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 16),
-              const Text("Location for Pickup", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Big image
+            if (imageUrl != null)
+              Image.network(
+                imageUrl,
+                width: double.infinity,
+                height: 300,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 300,
+                  color: Colors.grey[200],
+                  child: const Center(
+                    child: Icon(Icons.photo_library, size: 50),
+                  ),
+                ),
+              )
+            else
               Container(
-                height: 180,
-                width: double.infinity,
-                decoration: BoxDecoration(color: Colors.blueGrey.shade100, borderRadius: BorderRadius.circular(12)),
-                child: Center(
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Icon(Icons.map, size: 40, color: Colors.blueGrey),
-                    const SizedBox(height: 4),
-                    Text('Map placeholder: ${item.locationAddress ?? 'Unknown'}', style: const TextStyle(color: Colors.blueGrey)),
-                  ]),
+                height: 300,
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Icon(Icons.photo_library, size: 50),
                 ),
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // message/contact owner - implement per your app (open chat, show phone/email, etc.)
-                  },
-                  icon: const Icon(Icons.send),
-                  label: const Text("Message Owner to Donate"), // Changed button label for clarity
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
+
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        item.price != null && item.price! > 0
+                            ? '£${item.price!.toStringAsFixed(2)}'
+                            : 'FREE',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.teal,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.category,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    item.description,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Location for Pickup",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 180,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.blueGrey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.map,
+                            size: 40,
+                            color: Colors.blueGrey,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Map placeholder: ${item.locationAddress ?? 'Unknown'}',
+                            style: const TextStyle(color: Colors.blueGrey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatPage(
+                              receiverId: item.donorId,
+                              receiverName: item.donorName,
+                              receiverPhoto: item.donorPhoto,
+                              donation: item,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.send),
+                      label: const Text("Message"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ]),
-          ),
-        ]),
+            ),
+          ],
+        ),
       ),
     );
   }

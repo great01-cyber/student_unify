@@ -244,8 +244,17 @@ class _DonateState extends State<Donate> {
         locationAddress: _selectedLocationInfo,
         latitude: _selectedLatLng?.latitude,
         longitude: _selectedLatLng?.longitude,
+
+        /// REQUIRED FIELDS
         donorId: user.uid,
+        donorName: user.displayName ?? "Unknown Donor",
+        donorPhoto: user.photoURL ?? "",
+
+        /// Owner fields — if owner is same as donor
+        ownerId: user.uid,
+        ownerName: user.displayName ?? "Unknown",
       );
+
 
       final Map<String, dynamic> donationData = newDonation.toJson();
       donationData['donorId'] = user.uid;

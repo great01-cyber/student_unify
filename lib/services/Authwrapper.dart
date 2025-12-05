@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../AuthPage.dart';
 import '../Home/Homepage.dart';
 import '../Login/StudentLoginPage.dart';
-import '../Login/StudentPage.dart' hide Studentloginpage;
 import '../onboardingScreen.dart'; // Assuming this path
 
 class AuthWrapper extends StatelessWidget {
