@@ -1,4 +1,4 @@
-// donate.dart
+//
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -43,10 +43,10 @@ class _DonateState extends State<Donate> {
 
   // --- Controllers and Category State ---
   final List<String> _category = const [
-    'Free Academic and Study Materials',
+    'Academic and Study Materials',
     'Sport and Leisure Wears',
-    'Free Tech and Electronics',
-    'Free clothing and wears',
+    'Tech and Electronics',
+    'Clothing and wears',
     'Dorm and Essential things',
     'Others',
   ];
@@ -329,43 +329,66 @@ class _DonateState extends State<Donate> {
   }
 
   // --- Color and Style Constants (Teal & Amber Scheme) ---
-  static final Color _primaryColor = Colors.teal.shade700;
-  static final Color _accentColor = Colors.teal.shade300;
-  static final Color _headerColor = Colors.teal.shade800;
-  static final Color _locationBgColor = Colors.amber.shade50;
-  static final Color _locationConfirmedBgColor = Colors.teal.shade50;
+  // 🎨 Modern Donation Page Color Palette
+  static const Color _primaryColor = Color(0xFF6366F1); // Vibrant Indigo
+  static const Color _accentColor = Color(0xFF8B5CF6); // Purple accent
+  static const Color _headerColor = Color(0xFF4F46E5); // Deep Indigo
+  static const Color _successColor = Color(0xFF10B981); // Emerald green
+  static const Color _warningColor = Color(0xFFF59E0B); // Amber
+  static const Color _locationBgColor = Color(0xFFFEF3C7); // Warm cream
+  static const Color _locationConfirmedBgColor = Color(0xFFD1FAE5); // Mint green
+
+// Alternative warm palette option:
+// static const Color _primaryColor = Color(0xFFEC4899); // Hot pink
+// static const Color _accentColor = Color(0xFFF472B6); // Light pink
+// static const Color _headerColor = Color(0xFFDB2777); // Deep pink
 
   static const TextStyle _labelStyle = TextStyle(
-    fontFamily: 'Quicksand',
-    fontWeight: FontWeight.w600,
-    fontSize: 16,
-    color: Colors.teal,
-  );
-  static const TextStyle _inputStyle = TextStyle(
-    fontFamily: 'Quicksand',
-    fontWeight: FontWeight.w500,
-    fontSize: 14,
-  );
-  static const TextStyle _hintStyle = TextStyle(
-    fontFamily: 'Quicksand',
-    fontWeight: FontWeight.w400,
-    color: Colors.grey,
+    fontFamily: 'Mont',
+    fontWeight: FontWeight.w200,
+    fontSize: 13,
+    color: Color(0xFF4F46E5), // Matches header
   );
 
-  // --- Fanciful Input Decoration ---
+  static const TextStyle _inputStyle = TextStyle(
+    fontFamily: 'Mont',
+    fontWeight: FontWeight.w500,
+    fontSize: 14,
+    color: Color(0xFF1F2937), // Dark gray for readability
+  );
+
+  static const TextStyle _hintStyle = TextStyle(
+    fontFamily: 'Mont',
+    fontWeight: FontWeight.w400,
+    fontSize: 14,
+    color: Color(0xFF9CA3AF), // Medium gray
+  );
+
+// --- Enhanced Input Decoration ---
   InputDecoration _fancifulDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      labelStyle: _hintStyle,
-      prefixIcon: Icon(icon, color: _accentColor),
-      contentPadding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 10.0),
+      labelStyle: _labelStyle,
+      hintStyle: _hintStyle,
+      prefixIcon: Icon(icon, color: _accentColor, size: 22),
+      contentPadding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+      filled: true,
+      fillColor: Colors.grey.shade50,
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.teal.shade200, width: 1.5),
+        borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: _primaryColor, width: 2.0),
+        borderSide: BorderSide(color: _primaryColor, width: 2.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2.5),
       ),
     );
   }
@@ -373,13 +396,11 @@ class _DonateState extends State<Donate> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(
-          widget.title,
-          style: const TextStyle(fontFamily: 'Quicksand', fontWeight: FontWeight.bold),
+        title: Text('Donate',
+          style: const TextStyle(fontFamily: 'Mont', fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
         ),
-        backgroundColor: _headerColor,
-        foregroundColor: Colors.white,
       ),
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
@@ -443,10 +464,10 @@ class _DonateState extends State<Donate> {
                   controller: _priceController,
                   style: _inputStyle,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: _fancifulDecoration("Estimated Price (£)", Icons.attach_money),
+                  decoration: _fancifulDecoration("Estimated Price (£)", Icons.currency_pound),
                   validator: (val) => val!.isEmpty ? "Please enter a price" : null,
                 ),
-                Text("This is how much you will be saving the environment.", style: TextStyle(fontSize: 8, fontFamily: 'Quicksand',fontWeight: FontWeight.w100, color: Colors.black),),
+                Text("This is how much you will be saving a student from spending. Thank you!.", style: TextStyle(fontSize: 10, fontFamily: 'Mont', color: Colors.black),),
                 const SizedBox(height: 24),
 
                 // --- Estimated Kg Field ---
@@ -458,7 +479,7 @@ class _DonateState extends State<Donate> {
                       .copyWith(alignLabelWithHint: true),
                   // validator is optional as it is not required
                 ),
-                Text("This is how much you will be saving the environment.", style: TextStyle(fontSize: 8, fontFamily: 'Quicksand',fontWeight: FontWeight.w100 ),),
+                Text("This is how much you will be saving the environment.", style: TextStyle(fontSize: 10, fontFamily: 'Mont',),),
                 const SizedBox(height: 16),
 
                 // --- Image Uploader (Existing Code) ---
@@ -563,7 +584,7 @@ class _DonateState extends State<Donate> {
         padding: const EdgeInsets.all(12.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black12, width: 1.5),
+          border: Border.all(color: Color(0xFF6366F1), width: 1.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -595,7 +616,7 @@ class _DonateState extends State<Donate> {
           color: _locationConfirmedBgColor, // Use confirmed color
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Colors.teal.shade200,
+            color: Color(0xFF6366F1),
             style: BorderStyle.solid,
             width: 2,
           ),
@@ -632,7 +653,7 @@ class _DonateState extends State<Donate> {
                 Expanded(
                   child: Text(
                     _selectedLocationInfo ?? 'Location Confirmed',
-                    style: _inputStyle.copyWith(color: Colors.teal.shade700, fontWeight: FontWeight.bold),
+                    style: _inputStyle.copyWith(color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -645,8 +666,8 @@ class _DonateState extends State<Donate> {
                     );
                     _handleMapResult(result);
                   },
-                  icon: const Icon(Icons.edit_location, color: Colors.teal),
-                  label: const Text("Change", style: TextStyle(color: Colors.teal, fontFamily: 'Quicksand')),
+                  icon: const Icon(Icons.edit_location, color: Color(0xFF6366F1)),
+                  label: const Text("Change", style: TextStyle(color: Color(0xFF6366F1), fontFamily: 'Mont')),
                 ),
               ],
             ),
@@ -673,7 +694,7 @@ class _DonateState extends State<Donate> {
           color: _locationBgColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Colors.teal.shade200,
+            color: Color(0xFF6366F1),
             style: BorderStyle.solid,
             width: 2,
           ),
@@ -826,7 +847,7 @@ class _DonateState extends State<Donate> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.teal.shade200, width: 2),
+        border: Border.all(color: Color(0xFF6366F1), width: 2),
         boxShadow: [
           BoxShadow(
             color: Colors.teal.shade50.withOpacity(0.5),
@@ -874,7 +895,7 @@ class AddImageButton extends StatelessWidget {
           color: Colors.teal.shade50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: Colors.teal.shade200,
+            color: Color(0xFF6366F1),
             style: BorderStyle.solid,
             width: 1.5,
           ),
@@ -882,7 +903,7 @@ class AddImageButton extends StatelessWidget {
         child: Center(
           child: Icon(
             Icons.add_a_photo_outlined,
-            color: Colors.teal.shade400,
+            color: Color(0xFF6366F1),
             size: 30,
           ),
         ),
@@ -912,7 +933,7 @@ class ImageTile extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.teal.shade400,
+                  color: Color(0xFF6366F1),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 1.5),
                 ),

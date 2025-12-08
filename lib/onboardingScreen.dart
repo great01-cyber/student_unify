@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:student_unify_app/Login/NonStudentLogin.dart';
-import 'package:student_unify_app/Login/StudentPage.dart';
 
 import 'Login/StudentLoginPage.dart';
 

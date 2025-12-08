@@ -50,10 +50,7 @@ class _LendState extends State<LendPage> {
   String? _selectedCategory;
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
-  final _kgController = TextEditingController(); // Reuse for weight/size/etc.
-  final _extraInfoController = TextEditingController(); // 🎯 New: Extra Info
-  final _instructionsController = TextEditingController();
-  final _noteController = TextEditingController(); // 🎯 New: Short Note
+
 
   // Dates for Lending Period
   DateTime? _availableFrom;
@@ -83,11 +80,9 @@ class _LendState extends State<LendPage> {
     // Clean up controllers
     _titleController.dispose();
     _descController.dispose();
-    _extraInfoController.dispose();
-    _instructionsController.dispose();
+
     _locationMapController?.dispose();
-    _kgController.dispose();
-    _noteController.dispose();
+
     super.dispose();
   }
 
@@ -168,12 +163,7 @@ class _LendState extends State<LendPage> {
   Future<void> _submitForm() async {
     if (_isSubmitting) return;
     // 🎯 New: Check Liability Acceptance
-    if (!_isLiabilityAccepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('You must accept the liability waiver to proceed.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
-      );
-      return;
-    }
+
     if (!_formKey.currentState!.validate()) return;
 
     final user = FirebaseAuth.instance.currentUser;
@@ -222,22 +212,21 @@ class _LendState extends State<LendPage> {
       final imageUrls = await _uploadImagesToFirebase(docId);
 
       // 4. Create Lend Model Instance
-      final newLend = LendModel( // 🎯 Change: Use LendModel
+      final newLend = LendModel(
         id: docId,
         category: _selectedCategory ?? 'Unspecified',
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
-        // 🎯 Change: Use _noteController
-        shortNote: _noteController.text.trim(),
-        // 🎯 Change: Use _extraInfoController
-        extraInformation: _extraInfoController.text.trim(),
         imageUrls: imageUrls,
         availableFrom: _availableFrom,
         availableUntil: _availableUntil,
-        instructions: _instructionsController.text.trim(),
         locationAddress: _selectedLocationInfo,
         latitude: _selectedLatLng?.latitude,
         longitude: _selectedLatLng?.longitude,
+        // ✅ ADD THESE
+        donorId: user.uid,
+        donorName: lenderName ?? 'Unknown',
+        donorPhoto: user.photoURL ?? '',
       );
 
       // 5. Convert model to Firestore-ready map (using toJson/toMap)
@@ -270,9 +259,7 @@ class _LendState extends State<LendPage> {
         _selectedCategory = null;
         _titleController.clear();
         _descController.clear();
-        _extraInfoController.clear();
-        _instructionsController.clear();
-        _noteController.clear();
+
         _isLiabilityAccepted = false;
       });
     } catch (e, st) {
@@ -291,19 +278,19 @@ class _LendState extends State<LendPage> {
   static final Color _locationConfirmedBgColor = Colors.teal.shade50;
 
   static const TextStyle _labelStyle = TextStyle(
-    fontFamily: 'Quicksand',
-    fontWeight: FontWeight.w600,
-    fontSize: 16,
+    fontFamily: 'Mont',
+    fontWeight: FontWeight.w200,
+    fontSize: 13,
     color: Colors.teal,
   );
   static const TextStyle _inputStyle = TextStyle(
-    fontFamily: 'Quicksand',
-    fontWeight: FontWeight.w500,
-    fontSize: 14,
+    fontFamily: 'Mont',
+    fontWeight: FontWeight.w200,
+    fontSize: 12,
   );
   static const TextStyle _hintStyle = TextStyle(
-    fontFamily: 'Quicksand',
-    fontWeight: FontWeight.w400,
+    fontFamily: 'Mont',
+    fontWeight: FontWeight.w200,
     color: Colors.grey,
   );
 
@@ -394,33 +381,6 @@ class _LendState extends State<LendPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // --- Short Note Field ---
-                _buildSectionHeader("Short Note"),
-                TextFormField(
-                  controller: _noteController,
-                  style: _inputStyle,
-                  maxLines: 2,
-                  decoration: _fancifulDecoration("Add a short note to the borrower", Icons.note_add)
-                      .copyWith(alignLabelWithHint: true),
-                ),
-                // 🎯 New: Mandatory note for low value
-                const Padding(
-                  padding: EdgeInsets.only(top: 4.0, bottom: 16.0),
-                  child: Text(
-                    "Lend only low-value, non-sentimental items please. Basically, all lending is free.",
-                    style: TextStyle(fontSize: 10, fontFamily: 'Quicksand', fontWeight: FontWeight.w500, color: Colors.red),
-                  ),
-                ),
-
-                // --- Extra Information Field ---
-                _buildSectionHeader("Extra Information"),
-                TextFormField(
-                  controller: _extraInfoController,
-                  style: _inputStyle,
-                  maxLines: 3,
-                  decoration: _fancifulDecoration("Extra details (e.g., size, condition, return date)", Icons.info_outline)
-                      .copyWith(alignLabelWithHint: true),
-                ),
                 const SizedBox(height: 24),
 
                 // --- Image Uploader (Existing Code) ---
@@ -429,7 +389,7 @@ class _LendState extends State<LendPage> {
                 const SizedBox(height: 24),
 
                 // --- Time Fields (Lending Period) ---
-                _buildSectionHeader("Lending Availability Period"),
+                _buildSectionHeader("When I need it by"),
                 Row(
                   children: [
                     Expanded(child: _buildDateTimePicker(
@@ -445,17 +405,7 @@ class _LendState extends State<LendPage> {
                     )),
                   ],
                 ),
-                const SizedBox(height: 24),
 
-                // --- Pickup Instructions ---
-                _buildSectionHeader("Pickup Instructions"),
-                TextFormField(
-                  controller: _instructionsController,
-                  style: _inputStyle,
-                  maxLines: 3,
-                  decoration: _fancifulDecoration("Specific pickup instructions (e.g., knock on door 3)", Icons.directions)
-                      .copyWith(alignLabelWithHint: true),
-                ),
                 const SizedBox(height: 24),
 
                 // --- Location Section (Unchanged logic) ---
@@ -464,7 +414,6 @@ class _LendState extends State<LendPage> {
                 const SizedBox(height: 24),
 
                 // --- Liability Checkbox ---
-                _buildLiabilityCheckbox(),
                 const SizedBox(height: 32),
 
                 // --- Lend Now Button ---
@@ -653,36 +602,6 @@ class _LendState extends State<LendPage> {
           ],
         ),
       ),
-    );
-  }
-
-  // --- New: Liability Checkbox Widget ---
-  Widget _buildLiabilityCheckbox() {
-    return Row(
-      children: [
-        Checkbox(
-          value: _isLiabilityAccepted,
-          onChanged: (bool? newValue) {
-            setState(() {
-              _isLiabilityAccepted = newValue ?? false;
-            });
-          },
-          activeColor: _primaryColor,
-        ),
-        Expanded(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _isLiabilityAccepted = !_isLiabilityAccepted;
-              });
-            },
-            child: const Text(
-              "I confirm that Student Unify is not liable for potential loss or damage to this item.",
-              style: TextStyle(fontFamily: 'Quicksand', fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

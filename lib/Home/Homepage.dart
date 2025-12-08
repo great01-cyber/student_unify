@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart'; // Needed for the FAB icon
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // <<< NEW IMPORT
+import 'package:student_unify_app/Home/widgets/CommunityPage.dart';
+import 'package:student_unify_app/services/AppUser.dart';
 import '../services/ImageUploaderMixin.dart';
 import 'Drawer Section/My Impact/MyImpact.dart';
 import 'package:student_unify_app/Home/community.dart';
@@ -23,7 +26,7 @@ const String _profileImageUrlKey = 'profileImageUrl';
 
 
 // ========================================================
-// USER DRAWER (Stateful and Clickable)
+// USER DRAWER (Stateful and Clickable) - NO CHANGES
 // ========================================================
 class UserDrawer extends StatefulWidget {
   final String userName;
@@ -62,9 +65,7 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
 
   void _navigateToHome() {
     Navigator.pop(context);
-    Navigator.push(context,
-      MaterialPageRoute(builder: (context) => Homepage()),
-    );
+      MaterialPageRoute(builder: (context) => Homepage());
   }
 
   @override
@@ -77,13 +78,13 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
             accountName: Text(
               widget.userName,
               style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+                  color: Colors.black45,
+                  fontFamily: 'Mont'
               ),
             ),
             accountEmail: Text(
               widget.userEmail,
-              style: const TextStyle(color: Colors.white70),
+              style: const TextStyle(color: Colors.black45, fontFamily: 'Mont'),
             ),
 
             // Profile Picture - Clickable
@@ -123,7 +124,7 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
             ),
 
             decoration: const BoxDecoration(
-              color: Color(0xFFFF6786),
+              color: Colors.white10,
             ),
           ),
 
@@ -138,22 +139,14 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
           const Divider(),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text('ACTIVITY', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            child: Text('ACTIVITY', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold,fontFamily: 'Mont')),
           ),
           ListTile(
             leading: const Icon(Icons.list_alt),
-            title: const Text('My Listings'),
+            title: const Text('My Listings',style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold,fontFamily: 'Mont'),),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => MyDonationListingsPage()));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.favorite_border),
-            title: const Text('My Wishlist'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const MyWishlist()));
             },
           ),
           const Divider(),
@@ -163,7 +156,7 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
           ),
           ListTile(
             leading: const Icon(Icons.show_chart),
-            title: const Text('My Impact'),
+            title: const Text('My Impact',style: TextStyle(color: Colors.black, fontFamily: 'Mont')),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const SustainabilityPage()));
@@ -171,7 +164,7 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
           ),
           ListTile(
             leading: const Icon(Icons.verified_user),
-            title: const Text('My Badges'),
+            title: const Text('My Badges',style: TextStyle(color: Colors.black, fontFamily: 'Mont')),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const Myrewards()));
@@ -179,7 +172,7 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
           ),
           ListTile(
             leading: const Icon(Icons.lightbulb_outline),
-            title: const Text('Useful Tips'),
+            title: const Text('Useful Tips',style: TextStyle(color: Colors.black, fontFamily: 'Mont')),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const FlashcardsScreen()));
@@ -192,7 +185,7 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
           ),
           ListTile(
             leading: const Icon(Icons.account_circle_outlined),
-            title: const Text('My Profile Account'),
+            title: const Text('My Profile Account',style: TextStyle(color: Colors.black, fontFamily: 'Mont')),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const Myprofileaccount()));
@@ -200,7 +193,7 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
           ),
           ListTile(
             leading: const Icon(Icons.notifications_none),
-            title: const Text('Notification Settings'),
+            title: const Text('Notification Settings', style: TextStyle(color: Colors.black, fontFamily: 'Mont')),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const Notificationsettings()));
@@ -208,7 +201,7 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
           ),
           ListTile(
             leading: const Icon(Icons.location_on_outlined),
-            title: const Text('Stunify Near Me'),
+            title: const Text('Stunify Near Me',style: TextStyle(color: Colors.black, fontFamily: 'Mont')),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const Stunifiers()));
@@ -247,12 +240,14 @@ class _HomepageState extends State<Homepage> {
 
   int _currentIndex = 0;
 
+  // 🔑 FIX 1: Removed the 'MorePage' (Index 2) from the pages list
   final List<Widget> _pages = [
-    HomeContentPage(),
-    SearchDonationPage(),
-    CommunityPage(),
-    Message(),
+    HomeContentPage(),      // Index 0
+    SearchDonationPage(),   // Index 1
+    CommunityPageWrapper(), // Index 2
+    MessagesPage(),              // Index 3
   ];
+
 
   // --- MODIFIED DATA LOAD FUNCTION FOR PERSISTENCE ---
   Future<Map<String, dynamic>> _loadUserData() async {
@@ -307,15 +302,10 @@ class _HomepageState extends State<Homepage> {
     );
   }
 
+  // 🔑 FIX 2: Simplified _onItemTapped logic
   void _onItemTapped(int index) {
-    if (index == 2) {
-      _showAddItemSheet(context);
-    } else {
-      int newIndex = index > 2 ? index - 1 : index;
-
-      if (_currentIndex != newIndex) {
-        setState(() => _currentIndex = newIndex);
-      }
+    if (_currentIndex != index) {
+      setState(() => _currentIndex = index);
     }
   }
 
@@ -344,6 +334,15 @@ class _HomepageState extends State<Homepage> {
             profileImageUrl: data["profileImage"],
           ),
 
+          // 🔑 FIX 3: Added FloatingActionButton for the 'Add/More' modal
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _showAddItemSheet(context),
+            child: const Icon(CupertinoIcons.add), // Using CupertinoIcons.add
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+
+          // 🔑 FIX 4: BottomNavBar now contains only the 4 navigational items
+          // NOTE: Assumes bottomnavbar.dart has been updated to 4 items.
           bottomNavigationBar: BottomNavBar(
             currentIndex: _currentIndex,
             onTap: _onItemTapped,

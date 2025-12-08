@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Assuming these pages exist in your project structure
 import '../listings/BorrowPage.dart';
 import '../listings/Donate.dart';
 import '../listings/Exchange.dart';
@@ -14,50 +15,95 @@ class MorePage extends StatefulWidget {
 }
 
 class _MorePageState extends State<MorePage> {
+  // Define the font family constant for easy use
+  static const String _fontFamily = 'Mont';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('More Options'),
-        backgroundColor: Colors.blueGrey,
+        title: const Text(
+          'Options',
+          style: TextStyle(fontFamily: _fontFamily), // Use 'Mont' here
+        ),
+        backgroundColor: Colors.blueGrey[50],
       ),
       backgroundColor: Colors.grey[100],
-      body: const ButtonGrid(),
+      // Pass the font family down to the grid
+      body: const ButtonGrid(fontFamily: _fontFamily),
     );
   }
 }
 
 // -----------------------------------------------------------------
-// The Grid Widget
+// The Grid Widget - Now correctly accepts and uses the font
 // -----------------------------------------------------------------
 class ButtonGrid extends StatelessWidget {
-  const ButtonGrid({super.key});
+  final String fontFamily;
+
+  const ButtonGrid({super.key, required this.fontFamily});
+
+  // Method to show the alert box with the specified font
+  void _showComingSoonDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            "Coming Soon",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontFamily: fontFamily, // Use 'Mont' here
+            ),
+          ),
+          content: Text(
+            "This feature will be available soon. Please check back later.",
+            style: TextStyle(
+              fontFamily: fontFamily, // Use 'Mont' here
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                "OK",
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontFamily: fontFamily, // Use 'Mont' here
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _onButtonTap(BuildContext context, String buttonName, String pageTitle) {
+    // 1. CHECK FOR "COMING SOON" FEATURES (Borrow, Exchange, Sell)
+    if (buttonName == 'Borrow' || buttonName == 'Exchange' || buttonName == 'Sell') {
+      _showComingSoonDialog(context);
+      return; // Stop navigation
+    }
+
+    // 2. FOR ALL OTHER BUTTONS ('Donate', 'Lend'), PROCEED WITH NAVIGATION
     Widget pageToNavigateTo;
 
     switch (buttonName) {
-    // --- MODIFICATION 2: Pass 'pageTitle' to the page constructor ---
-      case 'Borrow':
-        pageToNavigateTo = BorrowRequestPage(title: 'Borrow',);
-        break;
       case 'Lend':
         pageToNavigateTo = LendPage(title: 'Lend',);
         break;
       case 'Donate':
         pageToNavigateTo = Donate(title: 'Donate',);
         break;
-      case 'Exchange':
-        pageToNavigateTo = ExchangePage(title: 'Exchange',);
-        break;
-      case 'Sell':
-        pageToNavigateTo = SellPage(title: 'Sell',);
-        break;
       default:
         return;
     }
 
-    // This navigation code now sends the page with the title
+    // Navigation code for features that are ready
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => pageToNavigateTo),
@@ -66,11 +112,9 @@ class ButtonGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- MODIFICATION 1: Define the subtitles ---
-    // This makes the code cleaner.
-    const String borrowSubtitle = "Borrow an Item";
-    const String lendSubtitle = "Lend an Item";
     const String donateSubtitle = "Donate an Item";
+    const String borrowSubtitle = "Lend an Item";
+    const String lendSubtitle = "Request an Item";
     const String exchangeSubtitle = "Exchange an Item";
     const String sellSubtitle = "Sell an Item";
 
@@ -80,41 +124,54 @@ class ButtonGrid extends StatelessWidget {
       crossAxisSpacing: 8.0,
       mainAxisSpacing: 8.0,
       children: [
-        // --- MODIFICATION 2: Pass the subtitle to the button ---
+        // Donate Button (Navigates)
         FancifulButton(
-          label: 'Borrow',
-          subtitle: borrowSubtitle, // Pass subtitle
-          icon: Icons.move_to_inbox,
-          color: Colors.blue,
-          onPressed: () => _onButtonTap(context, 'Borrow', borrowSubtitle),
+          label: 'Donate',
+          subtitle: donateSubtitle,
+          icon: Icons.favorite,
+          color: Color(0xFF6366F1),
+          onPressed: () => _onButtonTap(context, 'Donate', donateSubtitle),
+          fontFamily: fontFamily,
         ),
+
+        // Request/Lend Button (Navigates)
         FancifulButton(
-          label: 'Lend',
-          subtitle: lendSubtitle, // Pass subtitle
+          label: 'Request',
+          subtitle: lendSubtitle,
           icon: Icons.outbox,
           color: Colors.green,
           onPressed: () => _onButtonTap(context, 'Lend', lendSubtitle),
+          fontFamily: fontFamily,
         ),
+
+        // Borrow Button (Alert Box)
         FancifulButton(
-          label: 'Donate',
-          subtitle: donateSubtitle, // Pass subtitle
-          icon: Icons.favorite,
-          color: Colors.red,
-          onPressed: () => _onButtonTap(context, 'Donate', donateSubtitle),
+          label: 'Borrow',
+          subtitle: borrowSubtitle,
+          icon: Icons.move_to_inbox,
+          color: Colors.blue,
+          onPressed: () => _onButtonTap(context, 'Borrow', borrowSubtitle),
+          fontFamily: fontFamily,
         ),
+
+        // Exchange Button (Alert Box)
         FancifulButton(
           label: 'Exchange',
-          subtitle: exchangeSubtitle, // Pass subtitle
+          subtitle: exchangeSubtitle,
           icon: Icons.swap_horiz,
           color: Colors.orange,
           onPressed: () => _onButtonTap(context, 'Exchange', exchangeSubtitle),
+          fontFamily: fontFamily,
         ),
+
+        // Sell Button (Alert Box)
         FancifulButton(
           label: 'Sell',
-          subtitle: sellSubtitle, // Pass subtitle
+          subtitle: sellSubtitle,
           icon: Icons.sell,
           color: Colors.purple,
           onPressed: () => _onButtonTap(context, 'Sell', sellSubtitle),
+          fontFamily: fontFamily,
         ),
       ],
     );
@@ -122,24 +179,25 @@ class ButtonGrid extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------
-// The Custom Button Widget
+// The Custom Button Widget - Corrected to use 'fontFamily' argument
 // -----------------------------------------------------------------
 class FancifulButton extends StatelessWidget {
-  // --- MODIFICATION 3: Add 'subtitle' to constructor ---
   const FancifulButton({
     super.key,
     required this.label,
-    required this.subtitle, // Added this
+    required this.subtitle,
     required this.icon,
     required this.onPressed,
+    required this.fontFamily, // Correct property name
     this.color = Colors.grey,
   });
 
   final String label;
-  final String subtitle; // Added this
+  final String subtitle;
   final IconData icon;
   final VoidCallback onPressed;
   final Color color;
+  final String? fontFamily;
 
   @override
   Widget build(BuildContext context) {
@@ -176,19 +234,20 @@ class FancifulButton extends StatelessWidget {
               ),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.0,
                   fontWeight: FontWeight.bold,
+                  fontFamily: fontFamily,
                 ),
                 textAlign: TextAlign.center,
               ),
-              // --- MODIFICATION 4: Add the Subtitle Text Widget ---
-              const SizedBox(height: 4), // Add a little space
+              const SizedBox(height: 4),
               Text(
                 subtitle,
                 style: TextStyle(
-                  fontSize: 10.0, // Make it small
-                  color: Colors.grey[600], // Make it light grey
+                  fontSize: 10.0,
+                  color: Colors.grey[600],
+                  fontFamily: fontFamily,
                 ),
                 textAlign: TextAlign.center,
               ),

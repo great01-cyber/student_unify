@@ -4,6 +4,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:student_unify_app/services/notification.dart';
+import 'package:flutter/cupertino.dart';
 
 import 'firebase_options.dart';
 import 'onboardingScreen.dart';

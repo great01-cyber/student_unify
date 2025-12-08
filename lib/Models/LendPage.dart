@@ -1,103 +1,49 @@
 import 'dart:convert';
 
 class LendModel {
-  final String? id; // optional: database id or firestore doc id
+  final String? id;
   final String category;
   final String title;
   final String description;
-  final String? shortNote; // 🎯 New field for lending
-  final String? extraInformation; // 🎯 New field for lending
-  final List<String> imageUrls; // either local file paths or uploaded URLs
+  final List<String> imageUrls;
   final DateTime? availableFrom;
   final DateTime? availableUntil;
-  final String? instructions;
-  final String? locationAddress; // human readable
+  final String? locationAddress;
   final double? latitude;
   final double? longitude;
   final DateTime createdAt;
+
+  // ✅ ADD THESE FIELDS to match Donation model
+  final String donorId;      // The person requesting the item (lender becomes "donor")
+  final String donorName;    // Name of the person requesting
+  final String donorPhoto;   // Photo of the person requesting
 
   LendModel({
     this.id,
     required this.category,
     required this.title,
     required this.description,
-    this.shortNote, // 🎯 Included new field
-    this.extraInformation, // 🎯 Included new field
     this.imageUrls = const [],
     this.availableFrom,
     this.availableUntil,
-    this.instructions,
     this.locationAddress,
     this.latitude,
     this.longitude,
     DateTime? createdAt,
+    required this.donorId,     // ✅ Required
+    required this.donorName,   // ✅ Required
+    required this.donorPhoto,  // ✅ Required
   }) : createdAt = createdAt ?? DateTime.now();
 
-  LendModel copyWith({
-    String? id,
-    String? category,
-    String? title,
-    String? description,
-    String? shortNote, // 🎯 Updated field
-    String? extraInformation, // 🎯 Updated field
-    List<String>? imageUrls,
-    DateTime? availableFrom,
-    DateTime? availableUntil,
-    String? instructions,
-    String? locationAddress,
-    double? latitude,
-    double? longitude,
-    DateTime? createdAt,
-  }) {
-    return LendModel(
-      id: id ?? this.id,
-      category: category ?? this.category,
-      title: title ?? this.title,
-      description: description ?? this.description,
-      shortNote: shortNote ?? this.shortNote, // 🎯 Copied new field
-      extraInformation: extraInformation ?? this.extraInformation, // 🎯 Copied new field
-      imageUrls: imageUrls ?? this.imageUrls,
-      availableFrom: availableFrom ?? this.availableFrom,
-      availableUntil: availableUntil ?? this.availableUntil,
-      instructions: instructions ?? this.instructions,
-      locationAddress: locationAddress ?? this.locationAddress,
-      latitude: latitude ?? this.latitude,
-      longitude: longitude ?? this.longitude,
-      createdAt: createdAt ?? this.createdAt,
-    );
-  }
-
-  // Map for sqflite/local
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'category': category,
-      'title': title,
-      'description': description,
-      'shortNote': shortNote, // 🎯 Mapped new field
-      'extraInformation': extraInformation, // 🎯 Mapped new field
-      // store list as json string
-      'imageUrls': jsonEncode(imageUrls),
-      'availableFrom': availableFrom?.toIso8601String(),
-      'availableUntil': availableUntil?.toIso8601String(),
-      'instructions': instructions,
-      'locationAddress': locationAddress,
-      'latitude': latitude,
-      'longitude': longitude,
-      'createdAt': createdAt.toIso8601String(),
-    };
-  }
-
-  factory LendModel.fromMap(Map<String, dynamic> map) {
+  // Update fromJson
+  factory LendModel.fromJson(Map<String, dynamic> map) {
     return LendModel(
       id: map['id']?.toString(),
       category: map['category'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
-      shortNote: map['shortNote'], // 🎯 Parsed new field
-      extraInformation: map['extraInformation'], // 🎯 Parsed new field
       imageUrls: map['imageUrls'] != null
-          ? List<String>.from(jsonDecode(map['imageUrls']) as List<dynamic>)
+          ? List<String>.from(jsonDecode(map['imageUrls']))
           : <String>[],
       availableFrom: map['availableFrom'] != null
           ? DateTime.parse(map['availableFrom'])
@@ -105,27 +51,35 @@ class LendModel {
       availableUntil: map['availableUntil'] != null
           ? DateTime.parse(map['availableUntil'])
           : null,
-      instructions: map['instructions'],
       locationAddress: map['locationAddress'],
-      latitude:
-      map['latitude'] != null ? (map['latitude'] as num).toDouble() : null,
-      longitude:
-      map['longitude'] != null ? (map['longitude'] as num).toDouble() : null,
+      latitude: map['latitude'] != null ? (map['latitude'] as num).toDouble() : null,
+      longitude: map['longitude'] != null ? (map['longitude'] as num).toDouble() : null,
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : DateTime.now(),
+      donorId: map['lenderId'] ?? map['donorId'] ?? '', // ✅ Use lenderId or donorId
+      donorName: map['lenderName'] ?? map['donorName'] ?? 'Unknown', // ✅
+      donorPhoto: map['lenderPhoto'] ?? map['donorPhoto'] ?? '', // ✅
     );
   }
 
-  // For Firestore / REST
-  Map<String, dynamic> toJson() => toMap();
-
-  factory LendModel.fromJson(Map<String, dynamic> json) =>
-      LendModel.fromMap(json);
-
-  @override
-  String toString() {
-    return 'LendModel(id: $id, category: $category, title: $title, '
-        'note: $shortNote, images: ${imageUrls.length}, location: $locationAddress)';
+  // Update toJson
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'category': category,
+      'title': title,
+      'description': description,
+      'imageUrls': jsonEncode(imageUrls),
+      'availableFrom': availableFrom?.toIso8601String(),
+      'availableUntil': availableUntil?.toIso8601String(),
+      'locationAddress': locationAddress,
+      'latitude': latitude,
+      'longitude': longitude,
+      'createdAt': createdAt.toIso8601String(),
+      'donorId': donorId,     // ✅
+      'donorName': donorName, // ✅
+      'donorPhoto': donorPhoto, // ✅
+    };
   }
 }
