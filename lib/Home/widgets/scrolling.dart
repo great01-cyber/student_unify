@@ -7,7 +7,7 @@ import 'chatpage.dart'; // <- your Donation model (Donation.fromJson)
 // ------------------- ENUM AND HELPER WIDGETS (Moved outside for reusability) -------------------
 
 // 1. Define Listing Type Enum
-enum ListingType { borrow, lend, donate, exchange, sell }
+enum ListingType {donate, Request}
 
 // 2. Fallback Image Widget (Helper)
 Widget _imageFallback() {
@@ -44,15 +44,15 @@ Widget _buildItemCard(
   final Color actionColor;
 
   switch (type) {
-    case ListingType.lend:
-      actionText = 'Lending this Item';
+    case ListingType.Request:
+      actionText = 'Request an Item';
       actionColor = Colors.green.shade700;
       break;
     case ListingType.donate:
       actionText = 'FREE';
       actionColor = Colors.teal.shade700;
       break;
-    case ListingType.sell:
+    /*case ListingType.sell:
       actionText = price != null && price! > 0
           ? '£${price.toStringAsFixed(2)}'
           : 'Selling (Free)';
@@ -66,7 +66,7 @@ Widget _buildItemCard(
     default:
       actionText = 'Borrow this Item';
       actionColor = Colors.blue.shade700;
-      break;
+      break;*/
   }
 
   return GestureDetector(
