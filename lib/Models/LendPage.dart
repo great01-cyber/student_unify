@@ -13,10 +13,14 @@ class LendModel {
   final double? longitude;
   final DateTime createdAt;
 
-  // ✅ ADD THESE FIELDS to match Donation model
-  final String donorId;      // The person requesting the item (lender becomes "donor")
-  final String donorName;    // Name of the person requesting
-  final String donorPhoto;   // Photo of the person requesting
+  // Donor = lender (person giving the item)
+  final String donorId;
+  final String donorName;
+  final String donorPhoto;
+
+  // Requester = person requesting to borrow the item
+  // Only store ID - fetch name and photo from users collection when needed
+  final String? requesterId;
 
   LendModel({
     this.id,
@@ -30,12 +34,13 @@ class LendModel {
     this.latitude,
     this.longitude,
     DateTime? createdAt,
-    required this.donorId,     // ✅ Required
-    required this.donorName,   // ✅ Required
-    required this.donorPhoto,  // ✅ Required
+    required this.donorId,
+    required this.donorName,
+    required this.donorPhoto,
+    this.requesterId, // Nullable - only set when someone requests
   }) : createdAt = createdAt ?? DateTime.now();
 
-  // Update fromJson
+  // FROM JSON
   factory LendModel.fromJson(Map<String, dynamic> map) {
     return LendModel(
       id: map['id']?.toString(),
@@ -53,17 +58,23 @@ class LendModel {
           : null,
       locationAddress: map['locationAddress'],
       latitude: map['latitude'] != null ? (map['latitude'] as num).toDouble() : null,
-      longitude: map['longitude'] != null ? (map['longitude'] as num).toDouble() : null,
+      longitude:
+      map['longitude'] != null ? (map['longitude'] as num).toDouble() : null,
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : DateTime.now(),
-      donorId: map['lenderId'] ?? map['donorId'] ?? '', // ✅ Use lenderId or donorId
-      donorName: map['lenderName'] ?? map['donorName'] ?? 'Unknown', // ✅
-      donorPhoto: map['lenderPhoto'] ?? map['donorPhoto'] ?? '', // ✅
+
+      // Donor/Lender
+      donorId: map['lenderId'] ?? map['donorId'] ?? '',
+      donorName: map['lenderName'] ?? map['donorName'] ?? 'Unknown',
+      donorPhoto: map['lenderPhoto'] ?? map['donorPhoto'] ?? '',
+
+      // Requester - only ID
+      requesterId: map['requesterId'] ?? map['RequesterId'],
     );
   }
 
-  // Update toJson
+  // TO JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -77,9 +88,54 @@ class LendModel {
       'latitude': latitude,
       'longitude': longitude,
       'createdAt': createdAt.toIso8601String(),
-      'donorId': donorId,     // ✅
-      'donorName': donorName, // ✅
-      'donorPhoto': donorPhoto, // ✅
+
+      // Donor
+      'donorId': donorId,
+      'donorName': donorName,
+      'donorPhoto': donorPhoto,
+
+      // Requester - only ID
+      'requesterId': requesterId,
     };
   }
+
+  // Helper method to create a copy with updated fields
+  LendModel copyWith({
+    String? id,
+    String? category,
+    String? title,
+    String? description,
+    List<String>? imageUrls,
+    DateTime? availableFrom,
+    DateTime? availableUntil,
+    String? locationAddress,
+    double? latitude,
+    double? longitude,
+    DateTime? createdAt,
+    String? donorId,
+    String? donorName,
+    String? donorPhoto,
+    String? requesterId,
+  }) {
+    return LendModel(
+      id: id ?? this.id,
+      category: category ?? this.category,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      imageUrls: imageUrls ?? this.imageUrls,
+      availableFrom: availableFrom ?? this.availableFrom,
+      availableUntil: availableUntil ?? this.availableUntil,
+      locationAddress: locationAddress ?? this.locationAddress,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      createdAt: createdAt ?? this.createdAt,
+      donorId: donorId ?? this.donorId,
+      donorName: donorName ?? this.donorName,
+      donorPhoto: donorPhoto ?? this.donorPhoto,
+      requesterId: requesterId ?? this.requesterId,
+    );
+  }
+
+  // Check if item has been requested
+  bool get hasRequester => requesterId != null && requesterId!.isNotEmpty;
 }

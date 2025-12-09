@@ -3,7 +3,27 @@
     "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
     <dict>
+        <key>GIDClientID</key>
+        <!-- TODO Replace this value: -->
+        <!-- Copied from GoogleService-Info.plist key CLIENT_ID -->
+        <string>[148834837731-hsnejm7lbqvttlusl5v3is62osol8r4k.apps.googleusercontent.com]</string>
         <!-- Basic App Info -->
+        <!-- Put me in the [my_project]/ios/Runner/Info.plist file -->
+        <!-- Google Sign-in Section -->
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleTypeRole</key>
+                <string>Editor</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <!-- TODO Replace this value: -->
+                    <!-- Copied from GoogleService-Info.plist key REVERSED_CLIENT_ID -->
+                    <string>com.googleusercontent.apps.148834837731-hsnejm7lbqvttlusl5v3is62osol8r4k</string>
+                </array>
+            </dict>
+        </array>
+        <!-- End of the Google Sign-in Section -->
         <key>CFBundleDevelopmentRegion</key>
         <string>$(DEVELOPMENT_LANGUAGE)</string>
         <key>CFBundleExecutable</key>

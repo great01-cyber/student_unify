@@ -47,7 +47,7 @@ void main() async {
   // ---------------------------------------------------
   // 5. Request Notification Permission
   // ---------------------------------------------------
-  requestPermission();
+  requestPermissionAndListenForToken();
 
   // ---------------------------------------------------
   // 6. Initialize Local Notifications

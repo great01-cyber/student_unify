@@ -4,15 +4,28 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 
-// -------------------------------
-// 1. SAVE FCM TOKEN TO FIRESTORE
-// -------------------------------
+// ----------------------------------------------------
+// 1. SAVE TOKEN SAFELY (WAIT UNTIL APNs TOKEN IS READY)
+// ----------------------------------------------------
 Future<void> saveUserFCMToken() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
 
-  final token = await FirebaseMessaging.instance.getToken();
-  if (token == null) return;
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+  // ----- iOS FIX -----
+  // Wait until APNs token is available
+  String? token;
+
+  while (token == null) {
+    try {
+      token = await messaging.getToken();
+    } catch (_) {
+      await Future.delayed(Duration(seconds: 2)); // Wait and retry
+    }
+  }
+
+  print("🔥 Final FCM Token: $token");
 
   await FirebaseFirestore.instance
       .collection('users')
@@ -20,28 +33,37 @@ Future<void> saveUserFCMToken() async {
       .set({'fcmToken': token}, SetOptions(merge: true));
 }
 
-// -------------------------------
-// 2. REQUEST NOTIFICATION PERMISSION
-// -------------------------------
-void requestPermission() async {
+// ----------------------------------------------------
+// 2. REQUEST PERMISSION + HANDLE TOKEN REFRESH
+// ----------------------------------------------------
+void requestPermissionAndListenForToken() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-  NotificationSettings setting = await messaging.requestPermission(
+  NotificationSettings settings = await messaging.requestPermission(
     alert: true,
     badge: true,
     sound: true,
   );
 
-  if (setting.authorizationStatus == AuthorizationStatus.authorized) {
+  print('Authorization status: ${settings.authorizationStatus}');
+
+  if (settings.authorizationStatus == AuthorizationStatus.authorized) {
     print('User granted permission');
-  } else {
-    print('User declined notification permission');
+
+    // Save initial token
+    saveUserFCMToken();
+
+    // Listen for token refresh
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+      print("🔁 Token refreshed: $newToken");
+      saveUserFCMToken();
+    });
   }
 }
 
-// -------------------------------------
+// ----------------------------------------------------
 // 3. LOCAL NOTIFICATION INITIALIZATION
-// -------------------------------------
+// ----------------------------------------------------
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
@@ -58,7 +80,6 @@ Future<void> initInfo() async {
     iOS: iosInitialize,
   );
 
-  // Initialize plugin
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) {
@@ -74,22 +95,20 @@ Future<void> initInfo() async {
     print("📩 Received a foreground message");
 
     if (message.notification != null) {
-      String title = message.notification!.title ?? "No Title";
-      String body = message.notification!.body ?? "No Body";
-      String payload =
-      message.data.isNotEmpty ? message.data.toString() : "No Payload";
-
-      showNotification(title, body, payload);
+      showNotification(
+        message.notification!.title ?? "No Title",
+        message.notification!.body ?? "No Body",
+        message.data.isNotEmpty ? message.data.toString() : "No Payload",
+      );
     }
   });
 }
 
-// --------------------------------------------
-// 4. SHOW LOCAL NOTIFICATION WITH A PAYLOAD
-// --------------------------------------------
+// ----------------------------------------------------
+// 4. SHOW LOCAL NOTIFICATION
+// ----------------------------------------------------
 Future<void> showNotification(
     String title, String body, String payload) async {
-  // SAFE 32-bit notification ID
   int id = DateTime.now().millisecondsSinceEpoch % 2147483647;
 
   const AndroidNotificationDetails androidDetails =
@@ -115,11 +134,10 @@ Future<void> showNotification(
   );
 }
 
-// ------------------------------------------------
-// 5. REQUIRED - BACKGROUND MESSAGE HANDLER
-// ------------------------------------------------
+// ----------------------------------------------------
+// 5. REQUIRED BACKGROUND HANDLER
+// ----------------------------------------------------
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(
-    RemoteMessage message) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print("📨 Background message received: ${message.messageId}");
 }
