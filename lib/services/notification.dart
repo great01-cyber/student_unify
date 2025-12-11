@@ -27,11 +27,15 @@ Future<void> saveUserFCMToken() async {
 
   print("🔥 Final FCM Token: $token");
 
+  // Store token in an array for this user
   await FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
-      .set({'fcmToken': token}, SetOptions(merge: true));
+      .set({
+    'fcmTokens': FieldValue.arrayUnion([token])
+  }, SetOptions(merge: true));
 }
+
 
 // ----------------------------------------------------
 // 2. REQUEST PERMISSION + HANDLE TOKEN REFRESH

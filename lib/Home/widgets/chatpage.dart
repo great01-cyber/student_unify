@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:student_unify_app/Models/LendPage.dart';
 import '../../Models/DonateModel.dart';
 import '../../Models/messageModel.dart';
 
@@ -11,14 +12,16 @@ class ChatPage extends StatefulWidget {
   final String receiverId;
   final String receiverName;
   final String receiverPhoto;
-  final Donation donation;
+  final Donation? donation;
+  final LendModel? lendModel;
 
   const ChatPage({
     super.key,
     required this.receiverId,
     required this.receiverName,
     required this.receiverPhoto,
-    required this.donation,
+    this.donation,
+    this.lendModel,
   });
 
   @override
@@ -36,6 +39,13 @@ class _ChatPageState extends State<ChatPage> {
   StreamSubscription? _typingSubscription;
   bool _receiverIsTyping = false;
   bool _isOnline = false;
+
+  // Helper getters to work with both models
+  String get itemId => widget.donation?.id ?? widget.lendModel?.id ?? '';
+  String get itemTitle => widget.donation?.title ?? widget.lendModel?.title ?? '';
+  String get itemCategory => widget.donation?.category ?? widget.lendModel?.category ?? '';
+  String get donorId => widget.donation?.donorId ?? widget.lendModel?.donorId ?? '';
+  List<String> get itemImages => widget.donation?.imageUrls ?? widget.lendModel?.imageUrls ?? [];
 
   @override
   void initState() {
@@ -144,7 +154,6 @@ class _ChatPageState extends State<ChatPage> {
         final isTyping = data?['isTyping'] ?? false;
         final timestamp = data?['timestamp'] as Timestamp?;
 
-        // Only show typing if it's recent (within last 3 seconds)
         if (timestamp != null) {
           final timeDiff = DateTime.now().difference(timestamp.toDate()).inSeconds;
           setState(() {
@@ -196,7 +205,7 @@ class _ChatPageState extends State<ChatPage> {
       _controller.clear();
       _setTypingStatus(false);
 
-      // Update chat metadata
+      // Update chat metadata - works for both donation and lend
       await _firestore.collection('chats').doc(getChatId()).set({
         'lastMessage': imageUrl != null ? '📷 Photo' : text,
         'lastMessageTime': FieldValue.serverTimestamp(),
@@ -205,17 +214,15 @@ class _ChatPageState extends State<ChatPage> {
           currentUserId: FirebaseAuth.instance.currentUser?.displayName ?? '',
           widget.receiverId: widget.receiverName,
         },
-        'donorId': widget.donation.donorId,
-        'donationTitle': widget.donation.title,
-        'donationImage': widget.donation.imageUrls.isNotEmpty
-            ? widget.donation.imageUrls.first
-            : null,
+        'donorId': donorId,
+        'itemTitle': itemTitle,
+        'itemImage': itemImages.isNotEmpty ? itemImages.first : null,
+        'itemType': widget.donation != null ? 'donation' : 'lend',
         'unreadCount': {
           widget.receiverId: FieldValue.increment(1),
         },
       }, SetOptions(merge: true));
 
-      // Scroll to bottom
       _scrollToBottom();
 
     } catch (e) {
@@ -251,7 +258,7 @@ class _ChatPageState extends State<ChatPage> {
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          _buildDonationInfoCard(),
+          _buildItemInfoCard(),
           _buildQuickReplies(),
           Expanded(child: _buildMessagesList()),
           if (_receiverIsTyping) _buildTypingIndicator(),
@@ -333,8 +340,8 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // ==================== DONATION INFO CARD ====================
-  Widget _buildDonationInfoCard() {
+  // ==================== ITEM INFO CARD (WORKS FOR BOTH) ====================
+  Widget _buildItemInfoCard() {
     return Container(
       margin: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -359,27 +366,29 @@ class _ChatPageState extends State<ChatPage> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: const Icon(
-            Icons.volunteer_activism,
+          child: Icon(
+            widget.donation != null
+                ? Icons.volunteer_activism
+                : Icons.handshake,
             color: Colors.deepPurple,
           ),
         ),
         title: Text(
-          widget.donation.title,
+          itemTitle,
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
           ),
         ),
         subtitle: Text(
-          'Category: ${widget.donation.category}',
+          'Category: $itemCategory',
           style: const TextStyle(fontSize: 12),
         ),
-        trailing: widget.donation.imageUrls.isNotEmpty
+        trailing: itemImages.isNotEmpty
             ? ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Image.network(
-            widget.donation.imageUrls.first,
+            itemImages.first,
             width: 50,
             height: 50,
             fit: BoxFit.cover,
@@ -468,7 +477,6 @@ class _ChatPageState extends State<ChatPage> {
           );
         }
 
-        // Group messages by date
         final messages = snapshot.data!.docs;
 
         return ListView.builder(
@@ -481,7 +489,6 @@ class _ChatPageState extends State<ChatPage> {
             final message = ChatMessage.fromFirestore(doc);
             final isMe = message.senderId == currentUserId;
 
-            // Show date separator
             bool showDateSeparator = false;
             if (index == messages.length - 1) {
               showDateSeparator = true;
@@ -785,7 +792,6 @@ class _ChatPageState extends State<ChatPage> {
                     Colors.pink,
                         () {
                       Navigator.pop(context);
-                      // TODO: Implement camera
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Camera feature coming soon!')),
                       );
@@ -797,7 +803,6 @@ class _ChatPageState extends State<ChatPage> {
                     Colors.purple,
                         () {
                       Navigator.pop(context);
-                      // TODO: Implement gallery
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Gallery feature coming soon!')),
                       );
@@ -895,7 +900,6 @@ class _ChatPageState extends State<ChatPage> {
                 title: const Text('Block User'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Implement block
                 },
               ),
               ListTile(
@@ -903,7 +907,6 @@ class _ChatPageState extends State<ChatPage> {
                 title: const Text('Report'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Implement report
                 },
               ),
             ],

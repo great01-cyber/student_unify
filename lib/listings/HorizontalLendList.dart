@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../Home/widgets/chatpage.dart';
+import '../Models/DonateModel.dart';
 import '../Models/LendPage.dart';
 
 // ==================== LEND REQUEST CARD ====================
@@ -641,14 +643,18 @@ class LendRequestDetailPage extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () {
-            Navigator.pop(context);
-            // TODO: Implement chat navigation
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Chat feature coming soon!'),
-              ),
-            );
-          },
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatPage(
+                    receiverId: lendRequest.donorId,
+                    receiverName: lendRequest.donorName,
+                    receiverPhoto: lendRequest.donorPhoto,
+                    lendModel: lendRequest,
+                  ),
+                ),
+              );
+            },
             style: ElevatedButton.styleFrom(
 
               backgroundColor: Colors.teal.shade700,

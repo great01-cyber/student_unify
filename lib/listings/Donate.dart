@@ -396,7 +396,6 @@ class _DonateState extends State<Donate> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Donate',
           style: const TextStyle(fontFamily: 'Mont', fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
