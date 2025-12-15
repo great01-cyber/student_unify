@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../Home/Homepage.dart';
 import '../onboardingScreen.dart';
+import 'notification.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -24,6 +25,7 @@ class AuthWrapper extends StatelessWidget {
 
         // User is logged in
         if (authSnapshot.hasData && authSnapshot.data != null) {
+          saveUserFCMToken();
           return Homepage(); // Go to Homepage when logged in
         }
 
