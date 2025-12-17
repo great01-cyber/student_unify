@@ -77,13 +77,11 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  // ==================== CHAT ID ====================
+  // ==================== CHAT ID (ONE CHAT PER ITEM) ====================
   String getChatId() {
-    if (currentUserId.compareTo(widget.receiverId) < 0) {
-      return "$currentUserId-${widget.receiverId}";
-    } else {
-      return "${widget.receiverId}-$currentUserId";
-    }
+    // Include itemId to make chat unique per item
+    final users = [currentUserId, widget.receiverId]..sort();
+    return "${users[0]}-${users[1]}-$itemId";
   }
 
   // ==================== ONLINE STATUS ====================
@@ -205,7 +203,7 @@ class _ChatPageState extends State<ChatPage> {
       _controller.clear();
       _setTypingStatus(false);
 
-      // Update chat metadata - works for both donation and lend
+      // Update chat metadata - includes itemId for one chat per item
       await _firestore.collection('chats').doc(getChatId()).set({
         'lastMessage': imageUrl != null ? '📷 Photo' : text,
         'lastMessageTime': FieldValue.serverTimestamp(),
@@ -215,6 +213,7 @@ class _ChatPageState extends State<ChatPage> {
           widget.receiverId: widget.receiverName,
         },
         'donorId': donorId,
+        'itemId': itemId,  // Store itemId for unique chat per item
         'itemTitle': itemTitle,
         'itemImage': itemImages.isNotEmpty ? itemImages.first : null,
         'itemType': widget.donation != null ? 'donation' : 'lend',

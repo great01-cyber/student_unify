@@ -38,21 +38,20 @@ class AppUser {
   });
 
   // 🔹 Firestore → AppUser
-  factory AppUser.fromMap(Map<String, dynamic> map, {String? uid}) {
+  factory AppUser.fromMap(Map<String, dynamic> map, {required String uid}) {
     return AppUser(
-      uid: uid ?? map['uid'] ?? '', // Try to get from parameter first, then from map
-      email: map['email'] ?? '',
-      displayName: map['displayName'] ?? '',
-      emailVerified: map['emailVerified'] ?? false,
-      createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'])
-          : DateTime.now(),
-      university: map['university'] ?? '',
-      city: map['city'] ?? '',
+      uid: uid,
+      email: map['email'] as String,
+      emailVerified: map['emailVerified'] as bool? ?? false,
+      displayName: map['displayName'] as String?,
+      photoUrl: map['photoUrl'] as String?,
+      university: map['university'] as String? ?? '',
+      city: map['city'] as String? ?? '',
       fcmTokens: List<String>.from(map['fcmTokens'] ?? []),
-      latitude: map['latitude']?.toDouble(),
-      longitude: map['longitude']?.toDouble(),
-      photoUrl: map['photoUrl'],
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
+      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
   }
 

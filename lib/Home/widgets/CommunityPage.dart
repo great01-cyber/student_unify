@@ -12,10 +12,17 @@ class CommunityPageWrapper extends StatelessWidget {
   Future<AppUser?> _fetchAppUser() async {
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) return null;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).get();
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(firebaseUser.uid)
+        .get();
+
     if (doc.exists && doc.data() != null) {
-      return AppUser.fromMap(doc.data()!);
+      // ✅ FIX: Added the required uid parameter
+      return AppUser.fromMap(doc.data()!, uid: firebaseUser.uid);
     }
+
     return null;
   }
 

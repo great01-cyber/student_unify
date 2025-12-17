@@ -4,13 +4,21 @@
     <!-- Android 13+ notification permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <meta-data
+        android:name="com.google.firebase.messaging.default_notification_channel_id"
+        android:value="high_importance_channel" />
+
     <application
-        android:label="student_unify_app"
+        android:label="Stunify"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
         <meta-data android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDEZD5JDtSClTS3qSrG0OU3dJGo-3OADwY"/>
+        <!-- Inside <application> tag -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
 
         <activity
             android:name=".MainActivity"
