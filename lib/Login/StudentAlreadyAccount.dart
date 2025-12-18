@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Home/Homepage.dart';
+import 'forgot_password.dart';
 
 class StudentAlreadyAccount extends StatefulWidget {
   const StudentAlreadyAccount({super.key});
@@ -270,9 +271,14 @@ class _StudentloginpageState extends State<StudentAlreadyAccount>
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {},
-                          child: const Text("Forgot Password?",
-                              style: TextStyle(fontFamily: 'Mont')),
+                          onPressed: () {
+                            // Simply call the modal's show method
+                            ForgotPasswordModal.show(context);
+                          },
+                          child: const Text(
+                            "Forgot Password?",
+                            style: TextStyle(fontFamily: 'Mont'),
+                          ),
                         ),
                       ),
                     ],

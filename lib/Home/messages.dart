@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:student_unify_app/Home/widgets/chatpage.dart';
 import '../../Models/DonateModel.dart';
+import '../../Models/LendPage.dart';
 import '../services/AppUser.dart';
 
 
@@ -17,9 +18,11 @@ class ChatPreview {
   final DateTime lastMessageTime;
   final int unreadCount;
   final bool isOnline;
-  final String? donationTitle;
-  final String? donationImage;
+  final String? itemTitle;
+  final String? itemImage;
   final String donorId;
+  final String itemId;
+  final String? itemType;
 
   ChatPreview({
     required this.chatId,
@@ -30,9 +33,11 @@ class ChatPreview {
     required this.lastMessageTime,
     this.unreadCount = 0,
     this.isOnline = false,
-    this.donationTitle,
-    this.donationImage,
+    this.itemTitle,
+    this.itemImage,
     required this.donorId,
+    required this.itemId,
+    this.itemType,
   });
 }
 
@@ -226,7 +231,7 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
                 : chatPreviews.where((chat) {
               return chat.otherUserName.toLowerCase().contains(_searchQuery) ||
                   chat.lastMessage.toLowerCase().contains(_searchQuery) ||
-                  (chat.donationTitle?.toLowerCase().contains(_searchQuery) ?? false);
+                  (chat.itemTitle?.toLowerCase().contains(_searchQuery) ?? false);
             }).toList();
 
             if (filteredChats.isEmpty) {
@@ -272,7 +277,7 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
       AppUser? otherUser;
       if (userDoc.exists) {
         try {
-          otherUser = AppUser.fromMap(userDoc.data()!);
+          otherUser = AppUser.fromMap(userDoc.data()!, uid: otherUserId);
         } catch (e) {
           debugPrint('Error parsing user data: $e');
         }
@@ -291,9 +296,11 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
         lastMessageTime: (data['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
         unreadCount: unreadCount,
         isOnline: userDoc.data()?['isOnline'] ?? false,
-        donationTitle: data['donationTitle'],
-        donationImage: data['donationImage'],
+        itemTitle: data['itemTitle'],
+        itemImage: data['itemImage'],
         donorId: data['donorId'] ?? '',
+        itemId: data['itemId'] ?? '',
+        itemType: data['itemType'],
       );
 
       previews.add(preview);
@@ -321,21 +328,28 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
           // Mark messages as read when opening chat
           await _markChatAsRead(chat.chatId);
 
-          // Get donation info
-          final donation = await _getDonation(chat.donorId, chat.donationTitle ?? '');
+          // Get item info using itemId and itemType
+          final item = await _getItemById(chat.itemId, chat.itemType);
 
-          if (donation != null && mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ChatPage(
-                  receiverId: chat.otherUserId,
-                  receiverName: chat.otherUserName,
-                  receiverPhoto: chat.otherUserPhoto,
-                  donation: donation,
+          if (mounted) {
+            if (item != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatPage(
+                    receiverId: chat.otherUserId,
+                    receiverName: chat.otherUserName,
+                    receiverPhoto: chat.otherUserPhoto,
+                    donation: item is Donation ? item : null,
+                    lendModel: item is LendModel ? item : null,
+                  ),
                 ),
-              ),
-            );
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Item no longer available')),
+              );
+            }
           }
         },
         child: Container(
@@ -343,25 +357,43 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              // Profile picture with online indicator
+              // ITEM IMAGE as main profile picture with online indicator
               Stack(
                 children: [
-                  CircleAvatar(
+                  // Use item image instead of user photo
+                  chat.itemImage != null && chat.itemImage!.isNotEmpty
+                      ? ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Image.network(
+                      chat.itemImage!,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.grey.shade300,
+                        child: Icon(
+                          chat.itemType == 'lend'
+                              ? Icons.handshake
+                              : Icons.volunteer_activism,
+                          size: 28,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                    ),
+                  )
+                      : CircleAvatar(
                     radius: 28,
                     backgroundColor: Colors.grey.shade300,
-                    backgroundImage: chat.otherUserPhoto.isNotEmpty
-                        ? NetworkImage(chat.otherUserPhoto)
-                        : null,
-                    child: chat.otherUserPhoto.isEmpty
-                        ? Text(
-                      chat.otherUserName[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                        : null,
+                    child: Icon(
+                      chat.itemType == 'lend'
+                          ? Icons.handshake
+                          : Icons.volunteer_activism,
+                      size: 28,
+                      color: Colors.deepPurple,
+                    ),
                   ),
+                  // Online indicator for the OTHER USER
                   if (chat.isOnline)
                     Positioned(
                       right: 0,
@@ -388,9 +420,10 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        // Show ITEM TITLE as main title
                         Expanded(
                           child: Text(
-                            chat.otherUserName,
+                            chat.itemTitle ?? 'Item',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: chat.unreadCount > 0
@@ -416,31 +449,38 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
                     ),
                     const SizedBox(height: 4),
 
-                    // Donation title (if available)
-                    if (chat.donationTitle != null) ...[
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.volunteer_activism,
-                            size: 12,
-                            color: Colors.deepPurple,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              chat.donationTitle!,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                                fontStyle: FontStyle.italic,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                    // Show OTHER USER NAME as subtitle
+                    Row(
+                      children: [
+                        // Small user avatar
+                        CircleAvatar(
+                          radius: 8,
+                          backgroundColor: Colors.grey.shade300,
+                          backgroundImage: chat.otherUserPhoto.isNotEmpty
+                              ? NetworkImage(chat.otherUserPhoto)
+                              : null,
+                          child: chat.otherUserPhoto.isEmpty
+                              ? Text(
+                            chat.otherUserName[0].toUpperCase(),
+                            style: const TextStyle(fontSize: 8),
+                          )
+                              : null,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            chat.otherUserName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                              fontStyle: FontStyle.italic,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                    ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
 
                     // Last message
                     Row(
@@ -487,26 +527,6 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
                   ],
                 ),
               ),
-
-              // Donation image thumbnail (if available)
-              if (chat.donationImage != null) ...[
-                const SizedBox(width: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.network(
-                    chat.donationImage!,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 50,
-                      height: 50,
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.image, size: 20),
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
@@ -573,22 +593,28 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
     });
   }
 
-  Future<Donation?> _getDonation(String donorId, String donationTitle) async {
+  // ==================== GET ITEM BY ID ====================
+  Future<dynamic> _getItemById(String itemId, String? itemType) async {
     try {
-      final querySnapshot = await _firestore
-          .collection('donations')
-          .where('donorId', isEqualTo: donorId)
-          .where('title', isEqualTo: donationTitle)
-          .limit(1)
+      final collectionName = (itemType == 'lend') ? 'lendItems' : 'donations';
+
+      final docSnapshot = await _firestore
+          .collection(collectionName)
+          .doc(itemId)
           .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        final data = querySnapshot.docs.first.data();
-        data['id'] = querySnapshot.docs.first.id;
-        return Donation.fromJson(data);
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        data['id'] = docSnapshot.id;
+
+        if (itemType == 'lend') {
+          return LendModel.fromJson(data);
+        } else {
+          return Donation.fromJson(data);
+        }
       }
     } catch (e) {
-      debugPrint('Error getting donation: $e');
+      debugPrint('Error getting item by ID: $e');
     }
     return null;
   }
@@ -599,7 +625,7 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
       builder: (context) => AlertDialog(
         title: const Text('Delete Conversation'),
         content: Text(
-          'Are you sure you want to delete this conversation with ${chat.otherUserName}?',
+          'Are you sure you want to delete this conversation about "${chat.itemTitle}"?',
         ),
         actions: [
           TextButton(

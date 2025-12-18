@@ -57,7 +57,6 @@ void main() async {
   // ---------------------------------------------------
   // 7. Save this device's FCM token in Firestore
   // ---------------------------------------------------
-  await saveUserFCMToken();
 
   // ---------------------------------------------------
   // 8. Check onboarding screen

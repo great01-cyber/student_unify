@@ -53,10 +53,6 @@ void requestPermissionAndListenForToken() async {
 
   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
     print('User granted permission');
-
-    // Save initial token
-    saveUserFCMToken();
-
     // Listen for token refresh
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
       print("🔁 Token refreshed: $newToken");

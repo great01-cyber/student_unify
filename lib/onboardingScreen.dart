@@ -280,20 +280,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.white,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  builder: (context) => Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
-                    ),
-                    child: StunifySignUpModalContent(),
-                  ),
-                );
+                SocialSignInModal.show(context);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
@@ -304,7 +291,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
               child: const Text(
-                "Sign Up",
+                "Continue with Socials",
                 style: TextStyle(fontSize: 18, fontFamily: "Mont"),
               ),
             ),

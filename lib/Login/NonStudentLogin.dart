@@ -111,20 +111,7 @@ class NonStudentLogin extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true, // makes it full height if needed
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                          ),
-                          builder: (context) => Padding(
-                            padding: EdgeInsets.only(
-                              bottom: MediaQuery.of(context).viewInsets.bottom,
-                            ),
-                            child: StunifySignUpModalContent(), // Your signup form widget
-                          ),
-                        );
+                        SocialSignInModal.show(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,

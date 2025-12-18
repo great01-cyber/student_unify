@@ -1,163 +1,116 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-// ⭐️ NEW IMPORT ADDED ⭐️
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:geolocator/geolocator.dart';
 
-// NOTE: The 'package:firebase_core/firebase_core.dart' import
-// and `await Firebase.initializeApp()` in main() are REQUIRED for this code to run.
-// They are assumed to be outside of this snippet or in your actual main.dart file.
-
-// import '../Home/Homepage.dart'; // Assuming Homepage is defined locally
-
-void main() => runApp(const MyApp());
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: handleAuthState(),
-    );
-  }
-}
-
-// Determine if the user is authenticated
-Widget handleAuthState() {
-  return StreamBuilder(
-    stream: FirebaseAuth.instance.authStateChanges(),
-    builder: (BuildContext context, snapshot) {
-      if (snapshot.hasData) {
-        return const HomePage(); // Ensure HomePage is const if possible
-      } else {
-        return const LoginPage();
-      }
-    },
-  );
-}
-
-// Login Page (placeholder)
-class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              builder: (BuildContext context) {
-                return const StunifySignUpModalContent();
-              },
-            );
-          },
-          child: const Text('Sign In'),
-        ),
-      ),
-    );
-  }
-}
-
-// Home Page after successful login
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  void _showSignUpModal(BuildContext context) {
+class SocialSignInModal {
+  static void show(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
-        return const StunifySignUpModalContent();
+        return const SocialSignInModalContent();
       },
     );
   }
+}
+
+class SocialSignInModalContent extends StatefulWidget {
+  const SocialSignInModalContent({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('App Home'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              await GoogleSignIn().signOut();
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Welcome! You are logged in.'),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _showSignUpModal(context),
-              child: const Text('Show Sign Up Modal'),
+  State<SocialSignInModalContent> createState() =>
+      _SocialSignInModalContentState();
+}
+
+class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
+
+  static const Color primaryColor = Color(0xFFFF6786);
+  static const Color secondaryColor = Color(0xFFFFF0F3);
+  static const Color textColor = Color(0xFF2D3142);
+
+  // Check if Apple Sign-In should be shown (iOS or macOS only)
+  bool get _shouldShowAppleSignIn {
+    if (kIsWeb) return false;
+    return Platform.isIOS || Platform.isMacOS;
+  }
+
+  void _showMessage(String message, {bool isError = true}) {
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 20,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isError ? Colors.red.shade700 : Colors.green.shade600,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
+            child: Row(
+              children: [
+                Icon(
+                  isError ? Icons.error_outline : Icons.check_circle_outline,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Mont',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 4), () {
+      overlayEntry.remove();
+    });
   }
-}
 
-// The Content for the Modal Sheet with working Google Sign-In and new Apple Sign-In
-class StunifySignUpModalContent extends StatefulWidget {
-  const StunifySignUpModalContent({super.key});
-
-  @override
-  State<StunifySignUpModalContent> createState() =>
-      _StunifySignUpModalContentState();
-}
-
-class _StunifySignUpModalContentState
-    extends State<StunifySignUpModalContent> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email'],
-  );
-
-  // Handle sign-in for different providers
   Future<void> _handleSignIn(BuildContext context, String method) async {
     if (method == 'Google') {
       await _signInWithGoogle(context);
     } else if (method == 'Apple') {
-      // ⭐️ CALL THE NEW METHOD ⭐️
       await _signInWithApple(context);
     } else if (method == 'Facebook') {
-      debugPrint('Facebook sign-in not implemented yet');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Facebook sign-in coming soon!')),
-        );
-      }
+      _showMessage('Facebook sign-in coming soon!');
     }
   }
 
-  // ⭐️ APPLE SIGN-IN IMPLEMENTATION ⭐️
   Future<void> _signInWithApple(BuildContext context) async {
     try {
       if (!mounted) return;
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
 
-      // 1. Get the Apple ID Credential
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
@@ -165,13 +118,11 @@ class _StunifySignUpModalContentState
         ],
       );
 
-      // 2. Create the Firebase Auth Credential
       final credential = OAuthProvider("apple.com").credential(
         idToken: appleCredential.identityToken,
         accessToken: appleCredential.authorizationCode,
       );
 
-      // 3. Sign in to Firebase with the Apple credential
       final UserCredential userCredential =
       await _auth.signInWithCredential(credential);
 
@@ -181,116 +132,41 @@ class _StunifySignUpModalContentState
         throw Exception('Failed to sign in with Apple');
       }
 
-      // --- Firestore/FCM Finalization Logic ---
-
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(firebaseUser.uid)
-          .get();
-
-      final fcmToken = await FirebaseMessaging.instance.getToken();
-
-      if (!userDoc.exists) {
-        // New user - create Firestore document
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(firebaseUser.uid)
-            .set({
-          'uid': firebaseUser.uid,
-          // Use Apple's provided email/name for initial population if available
-          'email': firebaseUser.email ?? appleCredential.email ?? '',
-          'displayName': firebaseUser.displayName ?? appleCredential.givenName ?? '',
-          'photoUrl': firebaseUser.photoURL ?? '',
-          'emailVerified': firebaseUser.emailVerified,
-          'createdAt': FieldValue.serverTimestamp(),
-          'university': '',
-          'city': '',
-          'fcmToken': fcmToken ?? '',
-          'isOnline': true,
-          'lastSeen': FieldValue.serverTimestamp(),
-        });
-      } else {
-        // Existing user - update FCM token and online status
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(firebaseUser.uid)
-            .update({
-          'fcmToken': fcmToken ?? '',
-          'isOnline': true,
-          'lastSeen': FieldValue.serverTimestamp(),
-        });
-      }
-
-      // --- Navigation and Cleanup ---
-      if (mounted) Navigator.pop(context); // Close loading dialog
-      if (mounted) Navigator.pop(context); // Close modal
+      await _finalizeUserInFirestore(firebaseUser);
 
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomePage()),
-              (route) => false,
-        );
+        Navigator.pop(context); // Close modal
+        _showMessage('Welcome to Stunify!', isError: false);
       }
     } on FirebaseAuthException catch (e) {
-      if (mounted) Navigator.pop(context);
-
       String errorMessage = 'Apple Authentication failed: ${e.message}';
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
-      }
+      _showMessage(errorMessage);
     } catch (e) {
-      if (mounted) Navigator.pop(context);
-
       debugPrint('Apple Sign-In Error: $e');
-
-      if (mounted && e.toString().contains('canceled')) {
-        return; // User canceled
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign-in failed: $e')),
-        );
+      if (!e.toString().contains('canceled')) {
+        _showMessage('Sign-in failed. Please try again.');
       }
     }
   }
 
-
-  // Google Sign-In implementation (Original, slightly cleaned up)
   Future<void> _signInWithGoogle(BuildContext context) async {
     try {
       if (!mounted) return;
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
 
-      // Trigger Google Sign-In flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
-      // If user cancels the sign-in
       if (googleUser == null) {
-        if (mounted) Navigator.pop(context);
-        return;
+        return; // User cancelled
       }
 
-      // Obtain the auth details from the request
       final GoogleSignInAuthentication googleAuth =
       await googleUser.authentication;
 
-      // Create a new credential for Firebase
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase with the Google credential
       final UserCredential userCredential =
       await _auth.signInWithCredential(credential);
 
@@ -300,62 +176,13 @@ class _StunifySignUpModalContentState
         throw Exception('Failed to sign in with Google');
       }
 
-      // Check if user exists in Firestore
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(firebaseUser.uid)
-          .get();
+      await _finalizeUserInFirestore(firebaseUser);
 
-      // Get FCM token for push notifications
-      final fcmToken = await FirebaseMessaging.instance.getToken();
-
-      if (!userDoc.exists) {
-        // New user - create Firestore document
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(firebaseUser.uid)
-            .set({
-          'uid': firebaseUser.uid,
-          'email': firebaseUser.email ?? '',
-          'displayName': firebaseUser.displayName ?? '',
-          'photoUrl': firebaseUser.photoURL ?? '',
-          'emailVerified': firebaseUser.emailVerified,
-          'createdAt': FieldValue.serverTimestamp(),
-          'university': '',
-          'city': '',
-          'fcmToken': fcmToken ?? '',
-          'isOnline': true,
-          'lastSeen': FieldValue.serverTimestamp(),
-        });
-      } else {
-        // Existing user - update FCM token and online status
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(firebaseUser.uid)
-            .update({
-          'fcmToken': fcmToken ?? '',
-          'isOnline': true,
-          'lastSeen': FieldValue.serverTimestamp(),
-        });
-      }
-
-      // Close loading dialog
-      if (mounted) Navigator.pop(context);
-
-      // Close modal
-      if (mounted) Navigator.pop(context);
-
-      // Navigate to home and remove all previous routes
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const HomePage()),
-              (route) => false,
-        );
+        Navigator.pop(context); // Close modal
+        _showMessage('Welcome to Stunify!', isError: false);
       }
-
     } on FirebaseAuthException catch (e) {
-      if (mounted) Navigator.pop(context);
-
       String errorMessage;
       switch (e.code) {
         case 'account-exists-with-different-credential':
@@ -365,180 +192,246 @@ class _StunifySignUpModalContentState
         case 'invalid-credential':
           errorMessage = 'The credential is invalid. Please try again.';
           break;
-        case 'operation-not-allowed':
-          errorMessage = 'Google sign-in is not enabled for this app.';
-          break;
-        case 'user-disabled':
-          errorMessage = 'This user account has been disabled.';
-          break;
-        case 'user-not-found':
-          errorMessage = 'No user found with this credential.';
-          break;
         default:
           errorMessage = 'Authentication failed: ${e.message}';
       }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
-      }
+      _showMessage(errorMessage);
     } catch (e) {
-      if (mounted) Navigator.pop(context);
-
       debugPrint('Google Sign-In Error: $e');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign-in failed: $e')),
-        );
-      }
+      _showMessage('Sign-in failed. Please try again.');
     }
   }
 
+  Future<void> _finalizeUserInFirestore(User firebaseUser) async {
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(firebaseUser.uid)
+        .get();
+
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+
+    // Get location if available
+    Position? position;
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission != LocationPermission.denied &&
+            permission != LocationPermission.deniedForever) {
+          position = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting location: $e');
+    }
+
+    if (!userDoc.exists) {
+      // New user - create Firestore document
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .set({
+        'uid': firebaseUser.uid,
+        'email': firebaseUser.email ?? '',
+        'displayName': firebaseUser.displayName ?? '',
+        'photoUrl': firebaseUser.photoURL ?? '',
+        'emailVerified': firebaseUser.emailVerified,
+        'createdAt': FieldValue.serverTimestamp(),
+        'university': '',
+        'graduationYear': null,
+        'fcmTokens': fcmToken != null ? [fcmToken] : [],
+        'latitude': position?.latitude,
+        'longitude': position?.longitude,
+        'isOnline': true,
+        'lastSeen': FieldValue.serverTimestamp(),
+      });
+    } else {
+      // Existing user - update FCM token and online status
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(firebaseUser.uid)
+          .update({
+        'fcmTokens': FieldValue.arrayUnion([fcmToken ?? '']),
+        'isOnline': true,
+        'lastSeen': FieldValue.serverTimestamp(),
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        top: 10.0,
-        left: 32.0,
-        right: 32.0,
-        bottom: MediaQuery.of(context).viewInsets.bottom +
-            MediaQuery.of(context).padding.bottom +
-            10,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // --- 1. Close Button (X) ---
-          Align(
-            alignment: Alignment.topRight,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.black54),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // --- 2. Header Text and Subtitle ---
-          const Column(
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
+              // Close Button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Sign in to Stunify',
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Mont',
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: textColor),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
               Text(
-                'Sign up for Stunify',
+                _shouldShowAppleSignIn
+                    ? "Choose your preferred sign-in method"
+                    : "Sign in with your preferred method",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade600,
+                  fontSize: 14,
                   fontFamily: 'Mont',
                 ),
               ),
-              SizedBox(height: 8),
+
+              const SizedBox(height: 32),
+
+              // Apple Sign-In Button (only on iOS/macOS)
+              if (_shouldShowAppleSignIn) ...[
+                ElevatedButton.icon(
+                  onPressed: () => _handleSignIn(context, 'Apple'),
+                  icon: const Icon(Icons.apple, color: Colors.white, size: 24),
+                  label: const Text(
+                    'Continue with Apple',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Mont',
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 2,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                          fontFamily: 'Mont',
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Google Button
+              OutlinedButton.icon(
+                onPressed: () => _handleSignIn(context, 'Google'),
+                icon: Image.asset(
+                  'assets/images/google.png',
+                  height: 24.0,
+                ),
+                label: const Text(
+                  'Continue with Google',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Mont',
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: textColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Facebook Button
+              OutlinedButton.icon(
+                onPressed: () => _handleSignIn(context, 'Facebook'),
+                icon: const Icon(
+                  Icons.facebook,
+                  color: Color(0xFF1877F2),
+                  size: 24.0,
+                ),
+                label: const Text(
+                  'Continue with Facebook',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Mont',
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: textColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Terms and Privacy
               Text(
-                "It's quickest to sign in with Apple ID",
+                'By continuing, you agree to our Terms of Service and Privacy Policy',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.black54,
-                  fontSize: 14,
-                  fontWeight: FontWeight.normal,
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
                   fontFamily: 'Mont',
                 ),
               ),
             ],
           ),
-
-          const SizedBox(height: 50),
-
-          // --- 3. Apple ID Button (Black Filled) ---
-          ElevatedButton.icon(
-            onPressed: () => _handleSignIn(context, 'Apple'),
-            icon: const Icon(Icons.apple, color: Colors.white),
-            label: const Text(
-              'Continue with Apple',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontFamily: 'Mont',
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // --- 4. Faint Underline (Divider) ---
-          const Divider(
-            color: Colors.grey,
-            thickness: 0.5,
-          ),
-
-          const SizedBox(height: 20),
-
-          // --- 5. Google Button ---
-          OutlinedButton.icon(
-            onPressed: () => _handleSignIn(context, 'Google'),
-            icon: Image.asset(
-              'assets/images/google.png',
-              height: 24.0,
-            ),
-            label: const Text(
-              'Continue with Google',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontFamily: 'Mont',
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              side: const BorderSide(color: Colors.black),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 15),
-
-          // --- 6. Facebook Button ---
-          OutlinedButton.icon(
-            onPressed: () => _handleSignIn(context, 'Facebook'),
-            icon: const Icon(
-              Icons.facebook,
-              color: Colors.blue,
-              size: 24.0,
-            ),
-            label: const Text(
-              'Continue with Facebook',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 16,
-                fontFamily: 'Mont',
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              side: const BorderSide(color: Colors.black),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 10),
-        ],
+        ),
       ),
     );
   }
