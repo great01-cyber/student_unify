@@ -7,14 +7,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../Home/Homepage.dart';
 import 'forgot_password.dart';
 
-class StudentAlreadyAccount extends StatefulWidget {
-  const StudentAlreadyAccount({super.key});
 
-  @override
-  State<StudentAlreadyAccount> createState() => _StudentloginpageState();
+
+class  NonStudentSignUp {
+  static void show(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return const NonStudentAlreadyAccount();
+      },
+    );
+  }
 }
 
-class _StudentloginpageState extends State<StudentAlreadyAccount>
+class NonStudentAlreadyAccount extends StatefulWidget {
+  const NonStudentAlreadyAccount({super.key});
+
+  @override
+  State<NonStudentAlreadyAccount> createState() => _StudentloginpageState();
+}
+
+class _StudentloginpageState extends State<NonStudentAlreadyAccount>
     with SingleTickerProviderStateMixin {
   bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
@@ -71,8 +85,6 @@ class _StudentloginpageState extends State<StudentAlreadyAccount>
   }
 
   // --- LOGIN FUNCTION ---
-  // Replace your _submitForm() method with this corrected version:
-
   Future<void> _submitForm() async {
     setState(() {
       _loginErrorMessage = null;
@@ -91,47 +103,17 @@ class _StudentloginpageState extends State<StudentAlreadyAccount>
 
       User? user = userCred.user;
 
-      // ✅ CRITICAL: Check email verification BEFORE doing anything else
       if (user != null && !user.emailVerified) {
-        await _auth.signOut(); // Sign out the unverified user
-
-        if (mounted) {
-          setState(() {
-            _loginErrorMessage =
-            "Email not verified. Please check your inbox or spam folder and verify your email before logging in.";
-            _isLoading = false;
-          });
-        }
-        return; // ✅ EXIT HERE - don't proceed further
+        await _auth.signOut();
+        setState(() {
+          _loginErrorMessage =
+          "Email not verified. Check your inbox or spam folder.";
+          _isLoading = false;
+        });
+        return;
       }
 
-      // ✅ Only reach here if email IS verified
-
-      // Check Firestore document and update roleEffective if needed
-      if (user != null) {
-        final userDoc = await _firestore.collection('users').doc(user.uid).get();
-
-        if (userDoc.exists) {
-          final data = userDoc.data();
-
-          // If user is a student with pendingStudent status, upgrade them
-          if (data?['role'] == 'student' && data?['roleEffective'] == 'pendingStudent') {
-            await _firestore.collection('users').doc(user.uid).update({
-              'roleEffective': 'student',
-              'emailVerified': true,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-          } else if (data?['emailVerified'] != true) {
-            // Update emailVerified flag for any user type
-            await _firestore.collection('users').doc(user.uid).update({
-              'emailVerified': true,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-          }
-        }
-      }
-
-      // Save login details to SharedPreferences
+      // --- Save login details to SharedPreferences ---
       await _saveLoginDetails(email, password);
 
       // Update FCM Token
@@ -146,7 +128,6 @@ class _StudentloginpageState extends State<StudentAlreadyAccount>
         debugPrint("FCM Token error: $e");
       }
 
-      // ✅ Only navigate if email is verified
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => Homepage()),
@@ -184,6 +165,7 @@ class _StudentloginpageState extends State<StudentAlreadyAccount>
           _isLoading = false;
         });
       }
+
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -241,30 +223,6 @@ class _StudentloginpageState extends State<StudentAlreadyAccount>
                   child: IconButton(
                     icon: const Icon(Icons.close, size: 28, color: primaryColor),
                     onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-
-                Center(
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        "assets/images/logon.png",
-                        height: 140,
-                        width: 140,
-                        errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.school, size: 80, color: primaryColor),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Welcome Back',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: primaryColor,
-                          fontFamily: 'Mont',
-                        ),
-                      ),
-                    ],
                   ),
                 ),
 

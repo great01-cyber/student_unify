@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:student_unify_app/services/AppUser.dart';
-import 'package:string_similarity/string_similarity.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:string_similarity/string_similarity.dart';
 
 import '../Home/widgets/ukUniversities.dart';
 
@@ -28,6 +27,7 @@ class SignupForm extends StatefulWidget {
 
 class SignupFormState extends State<SignupForm> {
   final _formKey = GlobalKey<FormState>();
+
   bool _isLoading = false;
   int _currentStep = 0;
 
@@ -60,6 +60,8 @@ class SignupFormState extends State<SignupForm> {
 
   void _showMessage(String message, {bool isError = true}) {
     final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
     final overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         top: MediaQuery.of(context).padding.top + 20,
@@ -112,6 +114,79 @@ class SignupFormState extends State<SignupForm> {
     });
   }
 
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email);
+  }
+
+  Future<Position?> _tryGetLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+    } catch (e) {
+      debugPrint('Error getting location: $e');
+      return null;
+    }
+  }
+
+  void _nextStep() {
+    final name = _displayNameController.text.trim();
+    final uniEmail = _universityEmailController.text.trim();
+    final uniName = _universityNameController.text.trim();
+    final gradYearStr = _graduationYearController.text.trim();
+
+    if (name.isEmpty) {
+      _showMessage('Please enter your full name.');
+      return;
+    }
+
+    if (uniEmail.isEmpty || !_isValidEmail(uniEmail)) {
+      _showMessage('Please enter a valid university email.');
+      return;
+    }
+
+    if (!uniEmail.toLowerCase().endsWith('.ac.uk')) {
+      _showMessage('University email must end with .ac.uk for student verification.');
+      return;
+    }
+
+    if (uniName.isEmpty) {
+      _showMessage('Please select your university.');
+      return;
+    }
+
+    if (gradYearStr.isEmpty) {
+      _showMessage('Please enter your graduation year.');
+      return;
+    }
+
+    final year = int.tryParse(gradYearStr);
+    final nowYear = DateTime.now().year;
+    if (year == null || year < nowYear || year > nowYear + 10) {
+      _showMessage('Please enter a valid graduation year.');
+      return;
+    }
+
+    setState(() => _currentStep = 1);
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) setState(() => _currentStep--);
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -120,7 +195,7 @@ class SignupFormState extends State<SignupForm> {
     final personalEmail = _personalEmailController.text.trim();
     final password = _passwordController.text.trim();
     final university = _universityNameController.text.trim();
-    final graduationYear = _graduationYearController.text.trim();
+    final graduationYearStr = _graduationYearController.text.trim();
 
     setState(() => _isLoading = true);
 
@@ -138,43 +213,37 @@ class SignupFormState extends State<SignupForm> {
       }
 
       final fcmToken = await FirebaseMessaging.instance.getToken();
+      final position = await _tryGetLocation();
 
-      Position? position;
-      try {
-        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-        if (serviceEnabled) {
-          LocationPermission permission = await Geolocator.checkPermission();
-          if (permission == LocationPermission.denied) {
-            permission = await Geolocator.requestPermission();
-          }
-          if (permission != LocationPermission.denied &&
-              permission != LocationPermission.deniedForever) {
-            position = await Geolocator.getCurrentPosition(
-                desiredAccuracy: LocationAccuracy.high);
-          }
-        }
-      } catch (e) {
-        debugPrint('Error getting location: $e');
-      }
+      // ✅ Save user data (student role is pending until email verified)
+      await _firestore.collection('users').doc(firebaseUser.uid).set({
+        'email': firebaseUser.email ?? universityEmail,
+        'displayName': displayName.isNotEmpty ? displayName : null,
+        'photoUrl': firebaseUser.photoURL,
+        'personalEmail': personalEmail.isNotEmpty ? personalEmail : null,
 
-      final newUser = AppUser(
-        uid: firebaseUser.uid,
-        email: firebaseUser.email!,
-        personalEmail: personalEmail.isNotEmpty ? personalEmail : null,
-        displayName: displayName,
-        emailVerified: false,
-        createdAt: DateTime.now(),
-        university: university,
-        graduationYear: int.tryParse(graduationYear),
-        fcmTokens: fcmToken != null ? [fcmToken] : [],
-        latitude: position?.latitude,
-        longitude: position?.longitude,
-      );
+        'university': university,
+        'graduationYear': int.tryParse(graduationYearStr),
 
-      await _firestore.collection('users').doc(firebaseUser.uid).set(newUser.toMap());
+        'emailVerified': false,
+        'role': 'student',
+        'roleEffective': 'pendingStudent', // ✅ prevents student-only access before verified
+
+        'fcmTokens': (fcmToken != null && fcmToken.isNotEmpty) ? [fcmToken] : <String>[],
+
+        'latitude': position?.latitude,
+        'longitude': position?.longitude,
+
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       await _auth.signOut();
 
-      _showMessage('Account created! Please check your email to verify.', isError: false);
+      _showMessage(
+        'Account created! Check your university email to verify before you can log in.',
+        isError: false,
+      );
 
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) Navigator.of(context).pop();
@@ -192,42 +261,13 @@ class SignupFormState extends State<SignupForm> {
           errorMessage = 'The provided email is invalid.';
           break;
         default:
-          errorMessage = 'Authentication Error: ${e.message}';
+          errorMessage = 'Authentication Error: ${e.message ?? 'Unknown error'}';
       }
       _showMessage(errorMessage);
     } catch (e) {
       _showMessage('An unexpected error occurred. Please try again.');
     } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _nextStep() {
-    if (_currentStep == 0) {
-      if (_displayNameController.text.trim().isEmpty) {
-        _showMessage('Please enter your full name.');
-        return;
-      }
-      if (_universityEmailController.text.trim().isEmpty ||
-          !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(_universityEmailController.text.trim())) {
-        _showMessage('Please enter a valid university email.');
-        return;
-      }
-      if (_universityNameController.text.trim().isEmpty) {
-        _showMessage('Please select your university.');
-        return;
-      }
-      if (_graduationYearController.text.trim().isEmpty) {
-        _showMessage('Please enter your graduation year.');
-        return;
-      }
-      setState(() => _currentStep = 1);
-    }
-  }
-
-  void _previousStep() {
-    if (_currentStep > 0) {
-      setState(() => _currentStep--);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -315,8 +355,8 @@ class SignupFormState extends State<SignupForm> {
   }
 
   Widget _buildStepDot(int step) {
-    bool isActive = step == _currentStep;
-    bool isCompleted = step < _currentStep;
+    final isActive = step == _currentStep;
+    final isCompleted = step < _currentStep;
 
     return Container(
       width: 32,
@@ -341,6 +381,8 @@ class SignupFormState extends State<SignupForm> {
   }
 
   Widget _buildStep1() {
+    final nowYear = DateTime.now().year;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -363,51 +405,65 @@ class SignupFormState extends State<SignupForm> {
           ),
         ),
         const SizedBox(height: 28),
+
         _buildInputField(
           controller: _displayNameController,
           label: 'Full Name',
           icon: Icons.person_outline,
           validator: (value) {
-            if (value == null || value.isEmpty) return 'Full name is required';
+            if (_currentStep != 0) return null;
+            if (value == null || value.trim().isEmpty) return 'Full name is required';
             return null;
           },
         ),
+
         _buildInputField(
           controller: _universityEmailController,
           label: 'University Email',
           icon: Icons.email_outlined,
           keyboardType: TextInputType.emailAddress,
-          helpText: 'Use your official student email (e.g., student@university.ac.uk)',
+          helpText: 'Must end with .ac.uk (e.g., student@sheffield.ac.uk)',
           validator: (value) {
-            if (value == null || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
-              return 'A valid university email is required';
+            if (_currentStep != 0) return null;
+            final v = (value ?? '').trim();
+            if (v.isEmpty) return 'A valid university email is required';
+            if (!_isValidEmail(v)) return 'A valid university email is required';
+            if (!v.toLowerCase().endsWith('.ac.uk')) {
+              return 'Email must end with .ac.uk for student verification';
             }
             return null;
           },
         ),
+
         Padding(
           padding: const EdgeInsets.only(bottom: 20),
           child: Autocomplete<String>(
             optionsBuilder: (TextEditingValue textEditingValue) {
-              if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
-              final matches = ukUniversities.map((university) {
-                final similarity = StringSimilarity.compareTwoStrings(
-                  textEditingValue.text.toLowerCase(),
-                  university.toLowerCase(),
+              final input = textEditingValue.text.trim();
+              if (input.isEmpty) return const Iterable<String>.empty();
+
+              final matches = ukUniversities.map((u) {
+                final score = StringSimilarity.compareTwoStrings(
+                  input.toLowerCase(),
+                  u.toLowerCase(),
                 );
-                return {'university': university, 'score': similarity};
+                return {'university': u, 'score': score};
               }).toList();
+
               matches.sort((a, b) => (b['score'] as double).compareTo(a['score'] as double));
+
               return matches
-                  .where((match) => match['score'] as double > 0.2)
-                  .map((match) => match['university'] as String);
+                  .where((m) => (m['score'] as double) > 0.2)
+                  .take(12)
+                  .map((m) => m['university'] as String);
             },
-            onSelected: (String selection) {
+            onSelected: (selection) {
               _universityNameController.text = selection;
               FocusScope.of(context).unfocus();
             },
             fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
               controller.text = _universityNameController.text;
+
               return TextFormField(
                 controller: controller,
                 focusNode: focusNode,
@@ -430,26 +486,28 @@ class SignupFormState extends State<SignupForm> {
                   contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                   errorMaxLines: 2,
                 ),
-                onChanged: (value) {
-                  _universityNameController.text = value;
-                },
+                onChanged: (value) => _universityNameController.text = value,
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'University name is required';
+                  if (_currentStep != 0) return null;
+                  if (value == null || value.trim().isEmpty) return 'University name is required';
                   return null;
                 },
               );
             },
           ),
         ),
+
         _buildInputField(
           controller: _graduationYearController,
           label: 'Expected Graduation Year',
           icon: Icons.calendar_today_outlined,
           keyboardType: TextInputType.number,
           validator: (value) {
-            if (value == null || value.isEmpty) return 'Graduation year is required';
-            final year = int.tryParse(value);
-            if (year == null || year < DateTime.now().year || year > DateTime.now().year + 10) {
+            if (_currentStep != 0) return null;
+            final v = (value ?? '').trim();
+            if (v.isEmpty) return 'Graduation year is required';
+            final year = int.tryParse(v);
+            if (year == null || year < nowYear || year > nowYear + 10) {
               return 'Please enter a valid year';
             }
             return null;
@@ -482,41 +540,46 @@ class SignupFormState extends State<SignupForm> {
           ),
         ),
         const SizedBox(height: 28),
+
         _buildInputField(
           controller: _personalEmailController,
-          label: 'Personal Email (Optional but Recommended)',
+          label: 'Personal Email (Optional)',
           icon: Icons.alternate_email,
           keyboardType: TextInputType.emailAddress,
-          helpText: 'For account recovery and alumni updates after graduation',
+          helpText: 'For alumni updates after graduation',
           validator: (value) {
-            if (value != null && value.isNotEmpty) {
-              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(value)) {
-                return 'Please enter a valid email';
-              }
-            }
+            if (_currentStep != 1) return null;
+            final v = (value ?? '').trim();
+            if (v.isEmpty) return null;
+            if (!_isValidEmail(v)) return 'Please enter a valid email';
             return null;
           },
         ),
+
         _buildInputField(
           controller: _passwordController,
           label: 'Create Password',
           icon: Icons.lock_outline,
           isPassword: true,
           validator: (value) {
-            if (value == null || value.isEmpty) return 'Please create a password';
-            if (value.length < 8) return 'Password must be at least 8 characters';
-            if (!RegExp(r'(?=.*[A-Z])').hasMatch(value)) return 'Needs an uppercase letter';
-            if (!RegExp(r'(?=.*[0-9])').hasMatch(value)) return 'Needs at least one number';
+            if (_currentStep != 1) return null;
+            final v = (value ?? '');
+            if (v.isEmpty) return 'Please create a password';
+            if (v.length < 8) return 'Password must be at least 8 characters';
+            if (!RegExp(r'(?=.*[A-Z])').hasMatch(v)) return 'Needs an uppercase letter';
+            if (!RegExp(r'(?=.*[0-9])').hasMatch(v)) return 'Needs at least one number';
             return null;
           },
         ),
+
         _buildInputField(
           controller: _confirmPasswordController,
           label: 'Confirm Password',
           icon: Icons.lock_open_outlined,
           isPassword: true,
           validator: (value) {
-            if (value != _passwordController.text) return 'Passwords do not match';
+            if (_currentStep != 1) return null;
+            if ((value ?? '') != _passwordController.text) return 'Passwords do not match';
             return null;
           },
         ),
@@ -538,9 +601,9 @@ class SignupFormState extends State<SignupForm> {
           children: [
             Container(
               padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: secondaryColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -559,7 +622,7 @@ class SignupFormState extends State<SignupForm> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Connect with students nationwide',
+                        'Verify your university email to access student features',
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade700,
@@ -596,7 +659,7 @@ class SignupFormState extends State<SignupForm> {
                           if (_currentStep > 0)
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: _previousStep,
+                                onPressed: _isLoading ? null : _previousStep,
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 16),
                                   side: const BorderSide(color: primaryColor, width: 2),
@@ -652,9 +715,6 @@ class SignupFormState extends State<SignupForm> {
                           ),
                         ],
                       ),
-                      if (_currentStep == 0) ...[
-                        const SizedBox(height: 24),
-                      ],
                     ],
                   ),
                 ),

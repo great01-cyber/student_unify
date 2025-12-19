@@ -5,6 +5,8 @@ import 'package:student_unify_app/Login/StudentAlreadyAccount.dart';
 import 'package:student_unify_app/Login/TermPage.dart';
 import 'package:student_unify_app/Login/Non-StudentSignUp.dart';
 
+import 'Login/NonStudentAlreadyAccount.dart';
+
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -291,7 +293,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
               child: const Text(
-                "Continue with Socials",
+                "Sign up",
                 style: TextStyle(fontSize: 18, fontFamily: "Mont"),
               ),
             ),
@@ -304,7 +306,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                // TODO: Add non-student login modal
+                NonStudentSignUp.show(context);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.pinkAccent,

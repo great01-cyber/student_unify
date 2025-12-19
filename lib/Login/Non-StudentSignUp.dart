@@ -8,6 +8,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'SimpleEmailSignupModal.dart';
+
 class SocialSignInModal {
   static void show(BuildContext context) {
     showModalBottomSheet(
@@ -37,7 +39,6 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
   static const Color secondaryColor = Color(0xFFFFF0F3);
   static const Color textColor = Color(0xFF2D3142);
 
-  // Check if Apple Sign-In should be shown (iOS or macOS only)
   bool get _shouldShowAppleSignIn {
     if (kIsWeb) return false;
     return Platform.isIOS || Platform.isMacOS;
@@ -45,6 +46,8 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
 
   void _showMessage(String message, {bool isError = true}) {
     final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
     final overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         top: MediaQuery.of(context).padding.top + 20,
@@ -123,10 +126,8 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
         accessToken: appleCredential.authorizationCode,
       );
 
-      final UserCredential userCredential =
-      await _auth.signInWithCredential(credential);
-
-      final User? firebaseUser = userCredential.user;
+      final userCredential = await _auth.signInWithCredential(credential);
+      final firebaseUser = userCredential.user;
 
       if (firebaseUser == null) {
         throw Exception('Failed to sign in with Apple');
@@ -134,16 +135,14 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
 
       await _finalizeUserInFirestore(firebaseUser);
 
-      if (mounted) {
-        Navigator.pop(context); // Close modal
-        _showMessage('Welcome to Stunify!', isError: false);
-      }
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showMessage('Welcome to Stunify!', isError: false);
     } on FirebaseAuthException catch (e) {
-      String errorMessage = 'Apple Authentication failed: ${e.message}';
-      _showMessage(errorMessage);
+      _showMessage('Apple Authentication failed: ${e.message}');
     } catch (e) {
       debugPrint('Apple Sign-In Error: $e');
-      if (!e.toString().contains('canceled')) {
+      if (!e.toString().toLowerCase().contains('canceled')) {
         _showMessage('Sign-in failed. Please try again.');
       }
     }
@@ -153,24 +152,18 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
     try {
       if (!mounted) return;
 
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return; // cancelled
 
-      if (googleUser == null) {
-        return; // User cancelled
-      }
-
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+      final googleAuth = await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential =
-      await _auth.signInWithCredential(credential);
-
-      final User? firebaseUser = userCredential.user;
+      final userCredential = await _auth.signInWithCredential(credential);
+      final firebaseUser = userCredential.user;
 
       if (firebaseUser == null) {
         throw Exception('Failed to sign in with Google');
@@ -178,10 +171,9 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
 
       await _finalizeUserInFirestore(firebaseUser);
 
-      if (mounted) {
-        Navigator.pop(context); // Close modal
-        _showMessage('Welcome to Stunify!', isError: false);
-      }
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showMessage('Welcome to Stunify!', isError: false);
     } on FirebaseAuthException catch (e) {
       String errorMessage;
       switch (e.code) {
@@ -202,63 +194,89 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
     }
   }
 
-  Future<void> _finalizeUserInFirestore(User firebaseUser) async {
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(firebaseUser.uid)
-        .get();
-
-    final fcmToken = await FirebaseMessaging.instance.getToken();
-
-    // Get location if available
-    Position? position;
+  Future<Position?> _tryGetLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (serviceEnabled) {
-        LocationPermission permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied) {
-          permission = await Geolocator.requestPermission();
-        }
-        if (permission != LocationPermission.denied &&
-            permission != LocationPermission.deniedForever) {
-          position = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.high);
-        }
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
       }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
     } catch (e) {
       debugPrint('Error getting location: $e');
+      return null;
     }
+  }
+
+  /// ✅ Ensures user doc exists and is marked as NON-STUDENT.
+  Future<void> _finalizeUserInFirestore(User firebaseUser) async {
+    final usersRef = FirebaseFirestore.instance.collection('users');
+    final userRef = usersRef.doc(firebaseUser.uid);
+
+    final userDoc = await userRef.get();
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+    final position = await _tryGetLocation();
 
     if (!userDoc.exists) {
-      // New user - create Firestore document
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(firebaseUser.uid)
-          .set({
-        'uid': firebaseUser.uid,
+      // ✅ New user (Non-student)
+      await userRef.set({
         'email': firebaseUser.email ?? '',
-        'displayName': firebaseUser.displayName ?? '',
-        'photoUrl': firebaseUser.photoURL ?? '',
+        'displayName': firebaseUser.displayName,
+        'photoUrl': firebaseUser.photoURL,
         'emailVerified': firebaseUser.emailVerified,
-        'createdAt': FieldValue.serverTimestamp(),
+
+        // ✅ Role for your UI logic
+        'role': 'nonStudent',
+
+        // Non-students don't have uni details
         'university': '',
         'graduationYear': null,
-        'fcmTokens': fcmToken != null ? [fcmToken] : [],
+
+        // optional, can be filled by SimpleEmailSignupModal later
+        'personalEmail': null,
+
+        'fcmTokens': fcmToken != null ? [fcmToken] : <String>[],
         'latitude': position?.latitude,
         'longitude': position?.longitude,
-        'isOnline': true,
-        'lastSeen': FieldValue.serverTimestamp(),
+
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     } else {
-      // Existing user - update FCM token and online status
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(firebaseUser.uid)
-          .update({
-        'fcmTokens': FieldValue.arrayUnion([fcmToken ?? '']),
-        'isOnline': true,
-        'lastSeen': FieldValue.serverTimestamp(),
-      });
+      // ✅ Existing user: update token, verification, and ensure role exists
+      final data = userDoc.data() ?? {};
+      final existingRole = (data['role'] ?? '').toString();
+
+      final updateData = <String, dynamic>{
+        'emailVerified': firebaseUser.emailVerified,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        updateData['fcmTokens'] = FieldValue.arrayUnion([fcmToken]);
+      }
+
+      if (position != null) {
+        updateData['latitude'] = position.latitude;
+        updateData['longitude'] = position.longitude;
+      }
+
+      // Only set role if missing (don’t overwrite a verified student accidentally)
+      if (existingRole.isEmpty) {
+        updateData['role'] = 'nonStudent';
+      }
+
+      await userRef.update(updateData);
     }
   }
 
@@ -282,7 +300,6 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              // Close Button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -301,9 +318,7 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 _shouldShowAppleSignIn
                     ? "Choose your preferred sign-in method"
@@ -315,10 +330,8 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
                   fontFamily: 'Mont',
                 ),
               ),
-
               const SizedBox(height: 32),
 
-              // Apple Sign-In Button (only on iOS/macOS)
               if (_shouldShowAppleSignIn) ...[
                 ElevatedButton.icon(
                   onPressed: () => _handleSignIn(context, 'Apple'),
@@ -362,13 +375,9 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
                 const SizedBox(height: 16),
               ],
 
-              // Google Button
               OutlinedButton.icon(
                 onPressed: () => _handleSignIn(context, 'Google'),
-                icon: Image.asset(
-                  'assets/images/google.png',
-                  height: 24.0,
-                ),
+                icon: Image.asset('assets/images/google.png', height: 24.0),
                 label: const Text(
                   'Continue with Google',
                   style: TextStyle(
@@ -390,7 +399,6 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
 
               const SizedBox(height: 12),
 
-              // Facebook Button
               OutlinedButton.icon(
                 onPressed: () => _handleSignIn(context, 'Facebook'),
                 icon: const Icon(
@@ -417,9 +425,56 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // Terms and Privacy
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'OR',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Mont',
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  SimpleEmailSignupModal.show(context);
+                },
+                icon: const Icon(Icons.email_outlined, color: Colors.white, size: 22),
+                label: const Text(
+                  'Sign Up with Email',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Mont',
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               Text(
                 'By continuing, you agree to our Terms of Service and Privacy Policy',
                 textAlign: TextAlign.center,
