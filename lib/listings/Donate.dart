@@ -255,7 +255,6 @@ class _DonateState extends State<Donate> {
         ownerName: user.displayName ?? "Unknown",
       );
 
-
       final Map<String, dynamic> donationData = newDonation.toJson();
       donationData['donorId'] = user.uid;
       donationData['donorEmail'] = user.email;
@@ -269,12 +268,14 @@ class _DonateState extends State<Donate> {
           : (_selectedLocationInfo ?? '');
       await _persistLocationString(locString);
 
-      // 2. 🎯 Trigger the Cloud Function asynchronously
+      // 2. 🎯 Trigger the Cloud Function with 'donation' type
+      // Only students will receive notifications for donations
       final notificationService = NotificationService();
       await notificationService.triggerNearbyNotification(
         donationId: docId,
         donationData: donationData,
-      ); // No return value expected here
+        notificationType: 'donation', // ✅ Explicitly specify this is a donation
+      );
 
       if (mounted) {
         // Dismiss the loading dialog
@@ -284,7 +285,6 @@ class _DonateState extends State<Donate> {
       setState(() => _isSubmitting = false);
 
       if (mounted) {
-        // 3. ❌ REMOVED: $notificationCount is no longer available/needed.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(

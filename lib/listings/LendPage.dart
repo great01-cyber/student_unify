@@ -18,6 +18,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/New One.dart';
+
 // 🎯 Ensure this path matches where you saved your Lend model
 
 class LendPage extends StatefulWidget {
@@ -160,37 +162,76 @@ class _LendState extends State<LendPage> {
   }
 
   // --- Form Submission Logic (Primary Action) ---
+  // Add this method after your _submitForm() method
+  Future<void> _triggerNotifications(String docId, Map<String, dynamic> itemData, String notificationType) async {
+    try {
+      await _firestore.collection('notification_requests').add({
+        'donorId': FirebaseAuth.instance.currentUser!.uid,
+        'donationId': docId,
+        'donationData': itemData,
+        'notificationType': notificationType, // ✅ 'donation' or 'lend'
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('✅ Notification request created for $notificationType');
+    } catch (e) {
+      debugPrint('❌ Failed to trigger notifications: $e');
+    }
+  }
+
+// Then update your _submitForm() method - add this at the end, before clearing the form:
   Future<void> _submitForm() async {
     if (_isSubmitting) return;
-    // 🎯 New: Check Liability Acceptance
 
     if (!_formKey.currentState!.validate()) return;
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('You must be signed in to post an item for lending.'), backgroundColor: Colors.red.shade700),
+        SnackBar(
+          content: const Text('You must be signed in to post an item for lending.'),
+          backgroundColor: Colors.red.shade700,
+        ),
       );
       return;
     }
 
     if (_images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Please add at least one image.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
+        SnackBar(
+          content: const Text(
+            'Please add at least one image.',
+            style: TextStyle(fontFamily: 'Quicksand'),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
       );
       return;
     }
 
     if (_selectedLocationInfo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Please confirm your location.', style: TextStyle(fontFamily: 'Quicksand')), backgroundColor: Colors.red.shade700),
+        SnackBar(
+          content: const Text(
+            'Please confirm your location.',
+            style: TextStyle(fontFamily: 'Quicksand'),
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
       );
       return;
     }
 
     setState(() => _isSubmitting = true);
-    // show progress
-    showDialog(context: context, barrierDismissible: false, builder: (_) => WillPopScope(onWillPop: () async => false, child: const Center(child: CircularProgressIndicator())));
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => WillPopScope(
+        onWillPop: () async => false,
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+    );
 
     try {
       // 1. Get lender info
@@ -201,11 +242,10 @@ class _LendState extends State<LendPage> {
           lenderName = userDoc.data()?['displayName'] as String? ?? user.displayName;
         }
       } catch (e) {
-        // Fallback to Firebase Auth display name
+        debugPrint('Error fetching lender name: $e');
       }
 
       // 2. Prepare Firestore document ID
-      // 🎯 Change: Reference 'lends' collection
       final String docId = _firestore.collection('lends').doc().id;
 
       // 3. Upload images
@@ -223,22 +263,20 @@ class _LendState extends State<LendPage> {
         locationAddress: _selectedLocationInfo,
         latitude: _selectedLatLng?.latitude,
         longitude: _selectedLatLng?.longitude,
-        // ✅ ADD THESE
         donorId: user.uid,
         donorName: lenderName ?? 'Unknown',
         donorPhoto: user.photoURL ?? '',
       );
 
-      // 5. Convert model to Firestore-ready map (using toJson/toMap)
+      // 5. Convert model to Firestore-ready map
       final Map<String, dynamic> lendData = newLend.toJson();
 
-      // 6. Add donor metadata which isn't part of the core Lend model
+      // 6. Add donor metadata
       lendData['lenderId'] = user.uid;
       lendData['lenderEmail'] = user.email;
       lendData['lenderName'] = lenderName;
 
       // 7. Save to Firestore
-      // 🎯 Change: Save to 'lends' collection
       await _firestore.collection('lends').doc(docId).set(lendData);
 
       // 8. Persist location locally
@@ -247,26 +285,59 @@ class _LendState extends State<LendPage> {
           : (_selectedLocationInfo ?? '');
       await _persistLocationString(locString);
 
-      // 9. Done
-      Navigator.of(context).pop(); // close progress
+      // 9. 🎯 Trigger notifications for lend requests
+      // Both students and non-students will receive notifications for lends
+      final notificationService = NotificationService();
+      await notificationService.triggerNearbyNotification(
+        donationId: docId,
+        donationData: lendData,
+        notificationType: 'lend', // ✅ Specify this is a lend request
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop(); // close progress
+      }
+
       setState(() => _isSubmitting = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Item posted for lending!'), backgroundColor: Colors.green.shade700));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Item posted for lending! Nearby users are being notified.',
+              style: TextStyle(fontFamily: 'Quicksand'),
+            ),
+            backgroundColor: Colors.green.shade700,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
 
-      // clear form
+      // Clear form
       setState(() {
         _images.clear();
         _selectedCategory = null;
         _titleController.clear();
         _descController.clear();
-
         _isLiabilityAccepted = false;
       });
     } catch (e, st) {
-      Navigator.of(context).pop(); // close progress
+      if (mounted) {
+        Navigator.of(context).pop(); // close progress
+      }
+
       setState(() => _isSubmitting = false);
+
       debugPrint('Upload/save error: $e\n$st');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to post item: $e'), backgroundColor: Colors.red.shade700));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to post item: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
     }
   }
 

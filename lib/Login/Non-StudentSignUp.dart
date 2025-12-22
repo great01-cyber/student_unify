@@ -9,6 +9,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'SimpleEmailSignupModal.dart';
+import '../Home/Homepage.dart'; // Add your correct import path
 
 class SocialSignInModal {
   static void show(BuildContext context) {
@@ -136,8 +137,14 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
       await _finalizeUserInFirestore(firebaseUser);
 
       if (!mounted) return;
-      Navigator.pop(context);
+
+      // ✅ Navigate to Homepage
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => Homepage()),
+      );
+
       _showMessage('Welcome to Stunify!', isError: false);
+
     } on FirebaseAuthException catch (e) {
       _showMessage('Apple Authentication failed: ${e.message}');
     } catch (e) {
@@ -172,8 +179,14 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
       await _finalizeUserInFirestore(firebaseUser);
 
       if (!mounted) return;
-      Navigator.pop(context);
+
+      // ✅ Navigate to Homepage
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => Homepage()),
+      );
+
       _showMessage('Welcome to Stunify!', isError: false);
+
     } on FirebaseAuthException catch (e) {
       String errorMessage;
       switch (e.code) {
@@ -237,6 +250,7 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
 
         // ✅ Role for your UI logic
         'role': 'nonStudent',
+        'roleEffective': 'nonStudent', // ✅ Added roleEffective
 
         // Non-students don't have uni details
         'university': '',
@@ -271,9 +285,10 @@ class _SocialSignInModalContentState extends State<SocialSignInModalContent> {
         updateData['longitude'] = position.longitude;
       }
 
-      // Only set role if missing (don’t overwrite a verified student accidentally)
+      // Only set role if missing (don't overwrite a verified student accidentally)
       if (existingRole.isEmpty) {
         updateData['role'] = 'nonStudent';
+        updateData['roleEffective'] = 'nonStudent'; // ✅ Added roleEffective
       }
 
       await userRef.update(updateData);
