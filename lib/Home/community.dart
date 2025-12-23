@@ -584,7 +584,7 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         elevation: 0.5,
         title: const Text(

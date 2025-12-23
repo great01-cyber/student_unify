@@ -67,13 +67,33 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
-    _controller.removeListener(_onTypingChanged);
-    _controller.dispose();
-    _scrollController.dispose();
+    // Cancel timers and subscriptions first
     _typingTimer?.cancel();
     _typingSubscription?.cancel();
+
+    // Remove listeners
+    _controller.removeListener(_onTypingChanged);
+
+    // Update Firestore directly without calling setState
+    _firestore
+        .collection('chats')
+        .doc(getChatId())
+        .collection('typing')
+        .doc(currentUserId)
+        .set({
+      'isTyping': false,
+      'timestamp': FieldValue.serverTimestamp(),
+    }).catchError((error) {
+      debugPrint('Error updating typing status on dispose: $error');
+    });
+
+    // Update online status
     _setUserOnlineStatus(false);
-    _setTypingStatus(false);
+
+    // Dispose controllers
+    _controller.dispose();
+    _scrollController.dispose();
+
     super.dispose();
   }
 
@@ -126,7 +146,10 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _setTypingStatus(bool typing) {
-    setState(() => _isTyping = typing);
+    // Only update state if widget is still mounted
+    if (mounted) {
+      setState(() => _isTyping = typing);
+    }
 
     _firestore
         .collection('chats')
@@ -136,6 +159,8 @@ class _ChatPageState extends State<ChatPage> {
         .set({
       'isTyping': typing,
       'timestamp': FieldValue.serverTimestamp(),
+    }).catchError((error) {
+      debugPrint('Error updating typing status: $error');
     });
   }
 
