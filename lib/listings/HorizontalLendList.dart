@@ -170,7 +170,7 @@ class LendRequestCard extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: onTap,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal.shade600,
+                          backgroundColor: Color(0xFFFF6786),
                           foregroundColor: Colors.white,
                           padding: EdgeInsets.zero,
                           shape: RoundedRectangleBorder(

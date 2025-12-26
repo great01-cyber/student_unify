@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:student_unify_app/Home/widgets/scrolling.dart';
 import '../../listings/HorizontalLendList.dart';
 import '../../services/MapSelectionPage.dart';
+import '../../services/NotificationService.dart';
+import 'NotifcationPage.dart';
+
 
 class HomeContentPage extends StatefulWidget {
   const HomeContentPage({super.key});
@@ -27,11 +30,18 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  // Enhanced color palette
+  static const Color primaryPink = Color(0xFFFF6786);
+  static const Color lightPink = Color(0xFFFFE5EC);
+  static const Color accentPink = Color(0xFFFF9BAD);
+  static const Color darkText = Color(0xFF2D3748);
+  static const Color lightText = Color(0xFF718096);
+
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
 
@@ -40,9 +50,9 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, -0.1),
+      begin: const Offset(0, -0.15),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
 
     _loadAllData();
   }
@@ -129,41 +139,41 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            const Color(0xFFFAFAFA),
-            const Color(0xFFF5F5F5),
+            lightPink.withOpacity(0.3),
+            Colors.white,
             Colors.white,
           ],
         ),
       ),
       child: Column(
         children: [
-          // ================= ENHANCED HEADER =================
+          // ================= HEADER =================
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFF1E3A8A),
-                  const Color(0xFF2563EB),
-                  const Color(0xFF3B82F6),
+                  primaryPink,
+                  accentPink,
                 ],
               ),
               borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
+                bottomLeft: Radius.circular(32),
+                bottomRight: Radius.circular(32),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1E3A8A).withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  color: primaryPink.withOpacity(0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
             child: SafeArea(
+              bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: SlideTransition(
@@ -171,7 +181,7 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Greeting row
+                        // Top row with greeting and icons
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -182,22 +192,22 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                                   Text(
                                     getGreeting(),
                                     style: TextStyle(
-                                      fontFamily: 'Comfortaa',
-                                      fontWeight: FontWeight.w300,
-                                      fontSize: 14,
-                                      color: Colors.white.withOpacity(0.9),
-                                      letterSpacing: 0.5,
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 15,
+                                      color: Colors.white.withOpacity(0.95),
+                                      letterSpacing: 0.3,
+                                      fontFamily: 'Mont'
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 6),
                                   Text(
                                     username,
                                     style: const TextStyle(
-                                      fontFamily: 'Comfortaa',
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 26,
                                       color: Colors.white,
-                                      letterSpacing: 0.3,
+                                      letterSpacing: 0.2,
+                                      height: 1.2,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -206,11 +216,67 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                             ),
                             Row(
                               children: [
-                                _buildIconButton(
-                                  icon: Icons.notifications_outlined,
-                                  onTap: () {},
+                                // Notification icon with badge
+                                StreamBuilder<int>(
+                                  stream: NotificationService().getUnreadNotificationCount(),
+                                  builder: (context, snapshot) {
+                                    final unreadCount = snapshot.data ?? 0;
+
+                                    return Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        _buildIconButton(
+                                          icon: Icons.notifications_outlined,
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => const NotificationPage(),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        if (unreadCount > 0)
+                                          Positioned(
+                                            right: -4,
+                                            top: -4,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              constraints: const BoxConstraints(
+                                                minWidth: 20,
+                                                minHeight: 20,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [Colors.red, Color(0xFFEF4444)],
+                                                ),
+                                                borderRadius: BorderRadius.circular(10),
+                                                border: Border.all(color: Colors.white, width: 2),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.red.withOpacity(0.4),
+                                                    blurRadius: 6,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  unreadCount > 99 ? '99+' : '$unreadCount',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  },
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 10),
                                 Builder(
                                   builder: (context) => _buildIconButton(
                                     icon: Icons.menu_outlined,
@@ -228,18 +294,18 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                         GestureDetector(
                           onTap: _selectLocation,
                           child: Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(16),
+                              color: Colors.white.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                                width: 1,
+                                color: Colors.white.withOpacity(0.4),
+                                width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
@@ -247,18 +313,18 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(11),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(12),
+                                    color: Colors.white.withOpacity(0.3),
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: const Icon(
                                     Icons.location_on_rounded,
                                     color: Colors.white,
-                                    size: 20,
+                                    size: 22,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,23 +332,24 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                                       Text(
                                         "Current Location",
                                         style: TextStyle(
-                                          fontSize: 11,
-                                          fontFamily: 'Comfortaa',
-                                          fontWeight: FontWeight.w300,
-                                          color: Colors.white.withOpacity(0.8),
-                                          letterSpacing: 0.5,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w400,
+                                          color: Colors.white.withOpacity(0.9),
+                                          letterSpacing: 0.4,
+                                          fontFamily: 'Mont'
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: 4),
                                       Text(
                                         _selectedAddress.isEmpty
                                             ? "Tap to set location"
                                             : _selectedAddress,
                                         style: const TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Comfortaa',
-                                          fontWeight: FontWeight.w500,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
                                           color: Colors.white,
+                                          height: 1.3,
+                                          fontFamily: 'Mont'
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 1,
@@ -292,29 +359,25 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                                 ),
                                 Icon(
                                   Icons.arrow_forward_ios_rounded,
-                                  color: Colors.white.withOpacity(0.7),
-                                  size: 16,
+                                  color: Colors.white.withOpacity(0.8),
+                                  size: 18,
                                 ),
                               ],
                             ),
                           ),
                         ),
 
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 18),
 
                         // Status badge
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: _isStudent
-                                ? Colors.green.withOpacity(0.2)
-                                : Colors.orange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.white.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: _isStudent
-                                  ? Colors.greenAccent.withOpacity(0.5)
-                                  : Colors.orangeAccent.withOpacity(0.5),
-                              width: 1,
+                              color: Colors.white.withOpacity(0.4),
+                              width: 1.5,
                             ),
                           ),
                           child: Row(
@@ -327,9 +390,9 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                                     ? Icons.school_rounded
                                     : Icons.person_outline_rounded,
                                 color: Colors.white,
-                                size: 14,
+                                size: 16,
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Text(
                                 _roleLoading
                                     ? "Checking access..."
@@ -337,11 +400,11 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                                     ? "Student Access"
                                     : "Non-Student Access",
                                 style: const TextStyle(
-                                  fontSize: 12,
-                                  fontFamily: 'Comfortaa',
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Mont',
                                   color: Colors.white,
-                                  letterSpacing: 0.3,
+                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ],
@@ -355,52 +418,65 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
             ),
           ),
 
-          // ================= ENHANCED CONTENT =================
+          // ================= CONTENT =================
           Expanded(
             child: _roleLoading
                 ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E3A8A)),
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryPink),
+                    strokeWidth: 3,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   Text(
                     "Loading your content...",
                     style: TextStyle(
-                      fontFamily: 'Comfortaa',
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: lightText,
                     ),
                   ),
                 ],
               ),
             )
-                : SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Column(
-                  children: [
-                    // Always visible section
-                    _buildSectionHeader("Lending Requests", Icons.handshake_rounded),
-                    const HorizontalLendRequestsList(),
+                : RefreshIndicator(
+              color: primaryPink,
+              onRefresh: () async {
+                // Refresh the page
+                setState(() {
+                  _roleLoading = true;
+                });
+                await _loadAllData();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 24, bottom: 32),
+                  child: Column(
+                    children: [
+                      // Lending Requests section
+                      _buildSectionHeader("Lending Requests", Icons.handshake_rounded),
+                      const SizedBox(height: 12),
+                      const HorizontalLendRequestsList(),
 
-                    // Student-only content
-                    if (_isStudent) ...[
-                      const SizedBox(height: 32),
-                      _buildSectionHeader("Categories", Icons.category_rounded),
-                      const SizedBox(height: 8),
-                      _buildCategorySection('Academic and Study Materials', Icons.book_rounded),
-                      _buildCategorySection('Sport and Leisure Wears', Icons.sports_basketball_rounded),
-                      _buildCategorySection('Tech and Electronics', Icons.devices_rounded),
-                      _buildCategorySection('Clothing and wears', Icons.checkroom_rounded),
-                      _buildCategorySection('Dorm and Essential things', Icons.bed_rounded),
-                      _buildCategorySection('Others', Icons.more_horiz_rounded),
-                      const SizedBox(height: 32),
+                      // Student-only content
+                      if (_isStudent) ...[
+                        const SizedBox(height: 40),
+                        _buildSectionHeader("Browse Categories", Icons.grid_view_rounded),
+                        const SizedBox(height: 16),
+                        _buildCategorySection('Academic and Study Materials', Icons.menu_book_rounded),
+                        _buildCategorySection('Sport and Leisure Wears', Icons.sports_basketball_rounded),
+                        _buildCategorySection('Tech and Electronics', Icons.devices_rounded),
+                        _buildCategorySection('Clothing and wears', Icons.checkroom_rounded),
+                        _buildCategorySection('Dorm and Essential things', Icons.bed_rounded),
+                        _buildCategorySection('Others', Icons.more_horiz_rounded),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -413,21 +489,23 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
   Widget _buildIconButton({required IconData icon, required VoidCallback onTap}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withOpacity(0.25),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1,
+          color: Colors.white.withOpacity(0.4),
+          width: 1.5,
         ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
+          splashColor: Colors.white.withOpacity(0.2),
+          highlightColor: Colors.white.withOpacity(0.1),
           child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Icon(icon, color: Colors.white, size: 22),
+            padding: const EdgeInsets.all(11),
+            child: Icon(icon, color: Colors.white, size: 23),
           ),
         ),
       ),
@@ -436,28 +514,37 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
 
   Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+              gradient: LinearGradient(
+                colors: [primaryPink, accentPink],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryPink.withOpacity(0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Icon(icon, color: Colors.white, size: 18),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Text(
             title,
             style: const TextStyle(
-              fontFamily: 'Comfortaa',
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1E3A8A),
-              letterSpacing: 0.3,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: primaryPink,
+              letterSpacing: 0.2,
+              fontFamily: 'Mont'
             ),
           ),
         ],
@@ -469,24 +556,39 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF3B82F6), size: 20),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: lightPink,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: primaryPink,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
               Text(
                 categoryTitle,
                 style: const TextStyle(
-                  fontFamily: 'Comfortaa',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF1E3A8A),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: darkText,
+                  letterSpacing: 0.1,
                 ),
               ),
             ],
           ),
         ),
-        HorizontalItemList(categoryTitle: categoryTitle),
+        // Pass the exact category title to HorizontalItemList
+        HorizontalItemList(
+          key: ValueKey(categoryTitle), // Add key to force rebuild
+          categoryTitle: categoryTitle,
+        ),
       ],
     );
   }
