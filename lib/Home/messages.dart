@@ -96,6 +96,7 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
   // ==================== APP BAR ====================
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
+      automaticallyImplyLeading: false,
       backgroundColor: Colors.deepPurple,
       foregroundColor: Colors.white,
       elevation: 0,
@@ -596,7 +597,7 @@ class _MessagesPageState extends State<MessagesPage> with SingleTickerProviderSt
   // ==================== GET ITEM BY ID ====================
   Future<dynamic> _getItemById(String itemId, String? itemType) async {
     try {
-      final collectionName = (itemType == 'lend') ? 'lendItems' : 'donations';
+      final collectionName = (itemType == 'lend') ? 'lends' : 'donations';
 
       final docSnapshot = await _firestore
           .collection(collectionName)
