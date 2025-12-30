@@ -24,6 +24,13 @@ class Donation {
   final String ownerId;
   final String ownerName;
 
+  // ✅ NEW: Two-sided confirmation fields
+  final String? receiverId;
+  final bool donorConfirmed;
+  final DateTime? donorConfirmedDate;
+  final bool receiverConfirmed;
+  final DateTime? receiverConfirmedDate;
+
   Donation({
     this.id,
     required this.donorId,
@@ -44,6 +51,12 @@ class Donation {
     required this.ownerName,
     required this.donorName,
     required this.donorPhoto,
+    // ✅ NEW: Confirmation parameters
+    this.receiverId,
+    this.donorConfirmed = false,
+    this.donorConfirmedDate,
+    this.receiverConfirmed = false,
+    this.receiverConfirmedDate,
   }) : createdAt = createdAt ?? DateTime.now();
 
   Donation copyWith({
@@ -66,6 +79,12 @@ class Donation {
     String? ownerName,
     String? donorName,
     String? donorPhoto,
+    // ✅ NEW: Confirmation parameters
+    String? receiverId,
+    bool? donorConfirmed,
+    DateTime? donorConfirmedDate,
+    bool? receiverConfirmed,
+    DateTime? receiverConfirmedDate,
   }) {
     return Donation(
       id: id ?? this.id,
@@ -87,6 +106,12 @@ class Donation {
       ownerName: ownerName ?? this.ownerName,
       donorName: donorName ?? this.donorName,
       donorPhoto: donorPhoto ?? this.donorPhoto,
+      // ✅ NEW
+      receiverId: receiverId ?? this.receiverId,
+      donorConfirmed: donorConfirmed ?? this.donorConfirmed,
+      donorConfirmedDate: donorConfirmedDate ?? this.donorConfirmedDate,
+      receiverConfirmed: receiverConfirmed ?? this.receiverConfirmed,
+      receiverConfirmedDate: receiverConfirmedDate ?? this.receiverConfirmedDate,
     );
   }
 
@@ -111,6 +136,12 @@ class Donation {
       'ownerName': ownerName,
       'donorName': donorName,
       'donorPhoto': donorPhoto,
+      // ✅ NEW
+      'receiverId': receiverId,
+      'donorConfirmed': donorConfirmed,
+      'donorConfirmedDate': donorConfirmedDate,
+      'receiverConfirmed': receiverConfirmed,
+      'receiverConfirmedDate': receiverConfirmedDate,
     };
   }
 
@@ -160,6 +191,21 @@ class Donation {
 
       donorName: map['donorName'] ?? "Unknown Donor",
       donorPhoto: map['donorPhoto'] ?? "",
+
+      // ✅ NEW: Confirmation fields
+      receiverId: map['receiverId'],
+      donorConfirmed: map['donorConfirmed'] ?? false,
+      donorConfirmedDate: map['donorConfirmedDate'] == null
+          ? null
+          : (map['donorConfirmedDate'] is Timestamp
+          ? (map['donorConfirmedDate'] as Timestamp).toDate()
+          : DateTime.parse(map['donorConfirmedDate'])),
+      receiverConfirmed: map['receiverConfirmed'] ?? false,
+      receiverConfirmedDate: map['receiverConfirmedDate'] == null
+          ? null
+          : (map['receiverConfirmedDate'] is Timestamp
+          ? (map['receiverConfirmedDate'] as Timestamp).toDate()
+          : DateTime.parse(map['receiverConfirmedDate'])),
     );
   }
 

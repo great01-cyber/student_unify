@@ -8,6 +8,7 @@ import 'package:student_unify_app/Home/widgets/scrolling.dart';
 import '../../listings/HorizontalLendList.dart';
 import '../../services/MapSelectionPage.dart';
 import '../../services/NotificationService.dart';
+import 'Carousel.dart';
 import 'NotifcationPage.dart';
 
 
@@ -419,6 +420,7 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
           ),
 
           // ================= CONTENT =================
+          //QuoteCarousel(),
           Expanded(
             child: _roleLoading
                 ? Center(
@@ -459,15 +461,12 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
                   child: Column(
                     children: [
                       // Lending Requests section
-                      _buildSectionHeader("Lending Requests", Icons.handshake_rounded),
                       const SizedBox(height: 12),
                       const HorizontalLendRequestsList(),
 
                       // Student-only content
                       if (_isStudent) ...[
-                        const SizedBox(height: 40),
-                        _buildSectionHeader("Browse Categories", Icons.grid_view_rounded),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 3),
                         _buildCategorySection('Academic and Study Materials', Icons.menu_book_rounded),
                         _buildCategorySection('Sport and Leisure Wears', Icons.sports_basketball_rounded),
                         _buildCategorySection('Tech and Electronics', Icons.devices_rounded),
@@ -512,77 +511,11 @@ class _HomeContentPageState extends State<HomeContentPage> with SingleTickerProv
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [primaryPink, accentPink],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: primaryPink.withOpacity(0.25),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: primaryPink,
-              letterSpacing: 0.2,
-              fontFamily: 'Mont'
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCategorySection(String categoryTitle, IconData icon) {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: lightPink,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  icon,
-                  color: primaryPink,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                categoryTitle,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: darkText,
-                  letterSpacing: 0.1,
-                ),
-              ),
-            ],
-          ),
         ),
         // Pass the exact category title to HorizontalItemList
         HorizontalItemList(

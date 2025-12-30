@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart'; // Needed for the FAB icon
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:student_unify_app/Home/widgets/CommunityPage.dart';
 import 'package:student_unify_app/services/AppUser.dart';
@@ -21,7 +22,7 @@ import 'Drawer Section/Useful Tips/UsefulTips.dart';
 import 'Morepage.dart';
 import 'SearchPage.dart';
 import 'messages.dart';
-
+import 'dart:io';
 // Mixin Key
 const String _profileImageUrlKey = 'profileImageUrl';
 
@@ -271,13 +272,19 @@ class _UserDrawerState extends State<UserDrawer> with ImageUploaderMixin<UserDra
 
             _buildDrawerItem(
               icon: Icons.logout_rounded,
-              title: 'Logout',
+              title: 'Exit App',
               iconColor: Colors.red,
               textColor: Colors.red,
-              onTap: () async {
+              onTap: () {
                 Navigator.pop(context);
-                await FirebaseAuth.instance.signOut();
-                Navigator.pushReplacementNamed(context, "/login");
+
+                if (Platform.isAndroid) {
+                  exit(0); // closes app
+                } else if (Platform.isIOS) {
+                  // iOS discourages programmatic exit
+                  // Best practice is to minimize instead
+                  SystemNavigator.pop();
+                }
               },
             ),
 

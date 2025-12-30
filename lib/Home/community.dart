@@ -12,6 +12,12 @@ import '../Models/Comment.dart';
 import '../Models/PostModel.dart';
 import '../services/AppUser.dart';
 
+// Color palette - consistent with the app
+const Color primaryPink = Color(0xFFFF6786);
+const Color lightPink = Color(0xFFFFE5EC);
+const Color accentPink = Color(0xFFFF9BAD);
+const Color darkText = Color(0xFF2D3748);
+const Color lightText = Color(0xFF718096);
 
 class CommunityPageContent extends StatefulWidget {
   final AppUser currentUser;
@@ -79,28 +85,42 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
     }
   }
 
-  // ✅ FIXED: Image source picker with proper parameter type
   void _pickImageSource(StateSetter setDialogState, File? Function() getSelectedImage, void Function(File?) setSelectedImage) async {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SizedBox(
-        height: 150,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 16),
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const Text(
               'Select Image Source',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                fontFamily: 'Mont',
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                ElevatedButton.icon(
-                  onPressed: () async {
+                _buildImageSourceButton(
+                  icon: Icons.camera_alt_rounded,
+                  label: 'Camera',
+                  onTap: () async {
                     final XFile? image = await _imagePicker.pickImage(
                       source: ImageSource.camera,
                       maxWidth: 1920,
@@ -114,11 +134,11 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                     }
                     Navigator.pop(context);
                   },
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Camera'),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () async {
+                _buildImageSourceButton(
+                  icon: Icons.photo_library_rounded,
+                  label: 'Gallery',
+                  onTap: () async {
                     final XFile? image = await _imagePicker.pickImage(
                       source: ImageSource.gallery,
                       maxWidth: 1920,
@@ -132,10 +152,52 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                     }
                     Navigator.pop(context);
                   },
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text('Gallery'),
                 ),
               ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageSourceButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 140,
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [primaryPink, accentPink],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: primaryPink.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 36, color: Colors.white),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                fontFamily: 'Mont',
+              ),
             ),
           ],
         ),
@@ -144,7 +206,7 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
   }
 
   void _openComments(Post post) {
-    final TextEditingController _commentController = TextEditingController();
+    final TextEditingController commentController = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -161,36 +223,153 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
           ),
           child: Column(
             children: [
-              // Optional header
+              // Header
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Text('Comments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [primaryPink, accentPink],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.comment_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Comments',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Mont',
+                        color: darkText,
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
-              // The StreamBuilder goes here
+              // Comments List
               Expanded(
                 child: StreamBuilder(
-                  stream: FirebaseFirestore.instance
+                  stream: _firestore
                       .collection('posts')
                       .doc(post.id)
                       .collection('comments')
                       .orderBy('timestamp', descending: true)
                       .snapshots(),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    if (!snapshot.hasData) {
+                      return Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(primaryPink),
+                        ),
+                      );
+                    }
 
                     final comments = snapshot.data!.docs;
 
+                    if (comments.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              size: 60,
+                              color: lightText.withOpacity(0.5),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Be the first to comment!',
+                              style: TextStyle(
+                                color: lightText,
+                                fontSize: 16,
+                                fontFamily: 'Mont',
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
                     return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: comments.length,
                       itemBuilder: (_, index) {
                         final data = comments[index].data() as Map<String, dynamic>;
-                        return ListTile(
-                          leading: CircleAvatar(
-                            child: Text(data['username'][0].toUpperCase()),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: lightPink.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          title: Text(data['username']),
-                          subtitle: Text(data['text']),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: lightPink, width: 2),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: lightPink,
+                                  child: Text(
+                                    data['username'][0].toUpperCase(),
+                                    style: TextStyle(
+                                      color: primaryPink,
+                                      fontWeight: FontWeight.w700,
+                                      fontFamily: 'Mont',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      data['username'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                        fontFamily: 'Mont',
+                                        color: darkText,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      data['text'],
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontFamily: 'Mont',
+                                        color: darkText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       },
                     );
@@ -198,56 +377,95 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                 ),
               ),
 
-              // Optional input to add a new comment
-              Padding(
-                padding: const EdgeInsets.all(16.0),
+              // Input Field
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: _commentController, // define this controller in your CommentPage
-                        decoration: const InputDecoration(
-                          hintText: 'Write a comment...',
-                          border: OutlineInputBorder(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: lightPink.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(25),
+                          border: Border.all(color: lightPink),
+                        ),
+                        child: TextField(
+                          controller: commentController,
+                          decoration: const InputDecoration(
+                            hintText: 'Write a comment...',
+                            hintStyle: TextStyle(
+                              fontFamily: 'Mont',
+                              color: lightText,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            border: InputBorder.none,
+                          ),
+                          style: const TextStyle(fontFamily: 'Mont'),
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.send),
-                      onPressed: () async {
-                        final commentText = _commentController.text.trim();
-                        if (commentText.isEmpty) return;
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [primaryPink, accentPink],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryPink.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.send_rounded, color: Colors.white),
+                        onPressed: () async {
+                          final commentText = commentController.text.trim();
+                          if (commentText.isEmpty) return;
 
-                        try {
-                          // Add comment to Firestore
-                          await FirebaseFirestore.instance
-                              .collection('posts')
-                              .doc(post.id) // the current post
-                              .collection('comments')
-                              .add({
-                            'username': widget.currentUser.displayName ?? 'Anonymous',
-                            'userId': widget.currentUser.uid,
-                            'text': commentText,
-                            'timestamp': FieldValue.serverTimestamp(),
-                          });
+                          try {
+                            await _firestore
+                                .collection('posts')
+                                .doc(post.id)
+                                .collection('comments')
+                                .add({
+                              'username': widget.currentUser.displayName ?? 'Anonymous',
+                              'userId': widget.currentUser.uid,
+                              'text': commentText,
+                              'timestamp': FieldValue.serverTimestamp(),
+                            });
 
-                          // Increment comment count in the post document
-                          await FirebaseFirestore.instance
-                              .collection('posts')
-                              .doc(post.id)
-                              .update({
-                            'comments': FieldValue.increment(1),
-                          });
+                            await _firestore
+                                .collection('posts')
+                                .doc(post.id)
+                                .update({
+                              'comments': FieldValue.increment(1),
+                            });
 
-                          // Clear the TextField after sending
-                          _commentController.clear();
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error posting comment: $e')),
-                          );
-                        }
-                      },
-                    )
+                            commentController.clear();
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error posting comment: $e')),
+                            );
+                          }
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -257,7 +475,6 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
       ),
     );
   }
-
 
   void _sharePost(Post post) async {
     final shareText = "Check out this post from the community: \"${post.text}\"";
@@ -291,19 +508,14 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
     List<String> selectedTags = [];
     bool isUploading = false;
 
-    // 1. Replace showDialog with showModalBottomSheet
     await showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Crucial for full screen and keyboard handling
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-
-          // 2. Wrap content in a Container that defines the sheet's size and shape
           return Container(
-            // Set sheet height to take up 90% of the screen
             height: MediaQuery.of(context).size.height * 0.9,
-            // Add padding for the keyboard push-up
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
             ),
@@ -311,12 +523,10 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-
-            // 3. New Column structure for Header + Scrollable Content
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // --- Header/Drag Handle ---
+                // Drag Handle
                 Container(
                   margin: const EdgeInsets.symmetric(vertical: 12),
                   width: 40,
@@ -327,7 +537,7 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                   ),
                 ),
 
-                // --- Title & Action Buttons (Replacing AlertDialog Title/Actions) ---
+                // Header
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Row(
@@ -335,25 +545,34 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                     children: [
                       TextButton(
                         onPressed: isUploading ? null : () => Navigator.pop(context),
-                        child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: isUploading ? lightText : Colors.red,
+                            fontFamily: 'Mont',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                       const Text(
                         'Create Post',
                         style: TextStyle(
-                            fontFamily: 'Mont',
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold
+                          fontFamily: 'Mont',
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: darkText,
                         ),
                       ),
-                      // Post Button with Upload Logic
                       ElevatedButton(
                         onPressed: isUploading
                             ? null
                             : () async {
-                          // --- POST SUBMISSION LOGIC (UNCHANGED) ---
                           if (textController.text.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter some text')),
+                              const SnackBar(
+                                content: Text('Please enter some text'),
+                                backgroundColor: primaryPink,
+                              ),
                             );
                             return;
                           }
@@ -388,7 +607,10 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                             if (mounted) {
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Post created successfully!')),
+                                const SnackBar(
+                                  content: Text('Post created successfully!'),
+                                  backgroundColor: Colors.green,
+                                ),
                               );
                             }
                           } catch (e) {
@@ -403,76 +625,119 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                             });
                           }
                         },
-                        // Loading Indicator (UNCHANGED)
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryPink,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
                         child: isUploading
                             ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                            : const Text('Post'),
+                            : const Text(
+                          'Post',
+                          style: TextStyle(
+                            fontFamily: 'Mont',
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
 
-                const Divider(height: 20),
+                Divider(height: 20, color: lightPink),
 
-                // 4. Scrollable Content (Takes up remaining space using Expanded)
+                // Scrollable Content
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min, // Allows Column to size itself based on children
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Post Text (UNCHANGED)
-                        TextField(
-                          controller: textController,
-                          decoration: const InputDecoration(
-                            labelText: 'What\'s on your mind?',
-                            border: OutlineInputBorder(),
-                            hintText: 'Share your thoughts...',
+                        // Text Field
+                        Container(
+                          decoration: BoxDecoration(
+                            color: lightPink.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: lightPink),
                           ),
-                          maxLines: 4,
+                          child: TextField(
+                            controller: textController,
+                            decoration: const InputDecoration(
+                              labelText: 'What\'s on your mind?',
+                              labelStyle: TextStyle(
+                                fontFamily: 'Mont',
+                                color: primaryPink,
+                              ),
+                              hintText: 'Share your thoughts...',
+                              hintStyle: TextStyle(
+                                fontFamily: 'Mont',
+                                color: lightText,
+                              ),
+                              contentPadding: EdgeInsets.all(16),
+                              border: InputBorder.none,
+                            ),
+                            style: const TextStyle(fontFamily: 'Mont'),
+                            maxLines: 5,
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
 
-                        // Image Display (The part that caused the LayoutBuilder issue)
+                        // Image Display
                         if (selectedImage != null) ...[
                           Stack(
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(16),
                                 child: Image.file(
                                   selectedImage!,
-                                  width: double.infinity, // Now works great inside Expanded/SingleChildScrollView
+                                  width: double.infinity,
                                   fit: BoxFit.contain,
                                 ),
                               ),
                               Positioned(
                                 top: 8,
                                 right: 8,
-                                child: IconButton(
-                                  icon: const Icon(Icons.close),
-                                  onPressed: () {
-                                    setDialogState(() {
-                                      selectedImage = null;
-                                    });
-                                  },
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: Colors.pinkAccent,
-                                    foregroundColor: Colors.black,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.3),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close_rounded),
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        selectedImage = null;
+                                      });
+                                    },
+                                    color: Colors.white,
+                                    iconSize: 20,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                         ],
 
-                        // Add Image Button (UNCHANGED)
+                        // Add Image Button
                         OutlinedButton.icon(
                           onPressed: isUploading
                               ? null
@@ -483,25 +748,58 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                                   (file) => selectedImage = file,
                             );
                           },
-                          icon: const Icon(Icons.image),
+                          icon: Icon(
+                            selectedImage == null ? Icons.add_photo_alternate_rounded : Icons.edit_rounded,
+                            color: primaryPink,
+                          ),
                           label: Text(
-                            style: TextStyle(fontFamily: 'Mont'),
-                              selectedImage == null ? 'Add Image' : 'Change Image'),
+                            selectedImage == null ? 'Add Image' : 'Change Image',
+                            style: const TextStyle(
+                              fontFamily: 'Mont',
+                              fontWeight: FontWeight.w600,
+                              color: primaryPink,
+                            ),
+                          ),
                           style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 48),
+                            minimumSize: const Size(double.infinity, 50),
+                            side: BorderSide(color: primaryPink, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
 
-                        // Tags Selection (UNCHANGED)
-                        const Text(
-                          'Select Tags',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                        // Tags Section
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [primaryPink, accentPink],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.tag_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Select Tags',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                fontFamily: 'Mont',
+                                color: darkText,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -510,7 +808,14 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                               .map((tag) {
                             final isSelected = selectedTags.contains(tag);
                             return FilterChip(
-                              label: Text(tag),
+                              label: Text(
+                                tag,
+                                style: TextStyle(
+                                  fontFamily: 'Mont',
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected ? Colors.white : darkText,
+                                ),
+                              ),
                               selected: isSelected,
                               onSelected: isUploading
                                   ? (_) {}
@@ -523,13 +828,19 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                                   }
                                 });
                               },
-                              selectedColor: Colors.blueAccent.withOpacity(0.3),
-                              checkmarkColor: Colors.blueAccent,
+                              selectedColor: primaryPink,
+                              backgroundColor: lightPink.withOpacity(0.3),
+                              checkmarkColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(
+                                  color: isSelected ? primaryPink : lightPink,
+                                  width: 1.5,
+                                ),
+                              ),
                             );
                           }).toList(),
                         ),
-
-                        // Final padding to ensure bottom items are visible above the keyboard
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -582,23 +893,33 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
-        elevation: 0.5,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [primaryPink, accentPink],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: const Text(
           "Community",
           style: TextStyle(
-            color: Colors.pinkAccent,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Mont'
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'Mont',
+            fontSize: 22,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.favorite, color: Colors.red),
+            icon: const Icon(Icons.favorite_rounded, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
@@ -609,7 +930,7 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.bookmark_add_outlined, color: Colors.black),
+            icon: const Icon(Icons.bookmark_rounded, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
@@ -623,15 +944,15 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
       ),
       body: Column(
         children: [
-          // Categories Row - Scrollable
+          // Categories Row
           Container(
             height: 60,
-            color: Colors.grey[100],
+            color: Colors.white,
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               scrollDirection: Axis.horizontal,
               itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
               itemBuilder: (context, index) {
                 return CategoryChip(
                   label: categories[index],
@@ -647,7 +968,7 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
             ),
           ),
 
-          // Feed from Firebase - Scrollable with Filtering
+          // Feed
           Expanded(
             child: StreamBuilder<List<Post>>(
               stream: _getPostsStream(),
@@ -657,15 +978,24 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline,
-                            size: 48, color: Colors.red),
+                        Icon(Icons.error_outline, size: 60, color: primaryPink),
                         const SizedBox(height: 16),
-                        Text('Error: ${snapshot.error}'),
+                        Text(
+                          'Error loading posts',
+                          style: TextStyle(
+                            fontFamily: 'Mont',
+                            fontSize: 16,
+                            color: darkText,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () {
                             setState(() {});
                           },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryPink,
+                          ),
                           child: const Text('Retry'),
                         ),
                       ],
@@ -674,8 +1004,10 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
+                  return Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(primaryPink),
+                    ),
                   );
                 }
 
@@ -684,16 +1016,21 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.post_add, size: 64, color: Colors.grey[400]),
+                        Icon(
+                          Icons.post_add_rounded,
+                          size: 80,
+                          color: lightText.withOpacity(0.5),
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           selectedCategory == "All"
                               ? 'No posts yet'
                               : 'No posts in $selectedCategory',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontFamily: 'Mont',
+                            fontWeight: FontWeight.w700,
+                            color: darkText,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -701,7 +1038,10 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                           selectedCategory == "All"
                               ? 'Be the first to share something!'
                               : 'Try selecting a different category',
-                          style: TextStyle(color: Colors.grey[500]),
+                          style: TextStyle(
+                            color: lightText,
+                            fontFamily: 'Mont',
+                          ),
                         ),
                       ],
                     ),
@@ -728,7 +1068,10 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
                       onBookmark: () => _toggleBookmark(
                         posts[index].id,
                         posts[index].isBookmarked,
-                      ), onEdit: () {  }, onDelete: () {  }, currentUserId: '',
+                      ),
+                      onEdit: () {},
+                      onDelete: () {},
+                      currentUserId: '',
                     );
                   },
                 );
@@ -738,10 +1081,17 @@ class _CommunityPageContentState extends State<CommunityPageContent> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.blueAccent,
-        label: const Text("Post"),
-        icon: const Icon(Icons.edit),
         onPressed: _createPost,
+        backgroundColor: primaryPink,
+        elevation: 6,
+        label: const Text(
+          "Create Post",
+          style: TextStyle(
+            fontFamily: 'Mont',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        icon: const Icon(Icons.edit_rounded),
       ),
     );
   }
@@ -765,23 +1115,35 @@ class CategoryChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blueAccent : Colors.white,
+          gradient: isSelected
+              ? const LinearGradient(colors: [primaryPink, accentPink])
+              : null,
+          color: isSelected ? null : lightPink.withOpacity(0.3),
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [
+          border: Border.all(
+            color: isSelected ? primaryPink : lightPink,
+            width: 1.5,
+          ),
+          boxShadow: isSelected
+              ? [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
+              color: primaryPink.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             )
-          ],
+          ]
+              : null,
         ),
         child: Center(
           child: Text(
             label,
             style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: isSelected ? Colors.white : Colors.black,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Mont',
+              color: isSelected ? Colors.white : darkText,
+              fontSize: 14,
             ),
           ),
         ),
@@ -806,21 +1168,25 @@ class PostCard extends StatelessWidget {
     required this.onLike,
     required this.onComment,
     required this.onShare,
-    required this.onBookmark, required void Function() onEdit, required void Function() onDelete, required String currentUserId,
+    required this.onBookmark,
+    required void Function() onEdit,
+    required void Function() onDelete,
+    required String currentUserId,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: lightPink.withOpacity(0.5), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: primaryPink.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           )
         ],
       ),
@@ -830,19 +1196,30 @@ class PostCard extends StatelessWidget {
           // User Row
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: Colors.blueAccent,
-                backgroundImage: post.userPhotoUrl != null
-                    ? NetworkImage(post.userPhotoUrl!)
-                    : null,
-                child: post.userPhotoUrl == null
-                    ? Text(
-                  post.username.isNotEmpty
-                      ? post.username[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(color: Colors.white),
-                )
-                    : null,
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: lightPink, width: 2),
+                ),
+                child: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: lightPink,
+                  backgroundImage: post.userPhotoUrl != null
+                      ? NetworkImage(post.userPhotoUrl!)
+                      : null,
+                  child: post.userPhotoUrl == null
+                      ? Text(
+                    post.username.isNotEmpty
+                        ? post.username[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      color: primaryPink,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'Mont',
+                    ),
+                  )
+                      : null,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -851,30 +1228,44 @@ class PostCard extends StatelessWidget {
                   children: [
                     Text(
                       post.username,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Mont',
+                        fontSize: 15,
+                        color: darkText,
+                      ),
                     ),
                     Text(
                       "${post.university} • $relativeTime",
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(
+                        color: lightText,
+                        fontSize: 13,
+                        fontFamily: 'Mont',
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.more_horiz, color: Colors.grey),
+              Icon(Icons.more_horiz_rounded, color: lightText),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           // Post text
           Text(
             post.text,
-            style: const TextStyle(fontSize: 16),
+            style: const TextStyle(
+              fontSize: 15,
+              fontFamily: 'Mont',
+              color: darkText,
+              height: 1.4,
+            ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // ✅ IMPROVED Image Display - Handles any size
+          // Image
           if (post.imageUrl != null && post.imageUrl!.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -886,13 +1277,18 @@ class PostCard extends StatelessWidget {
                   if (loadingProgress == null) return child;
                   return Container(
                     height: 200,
-                    color: Colors.grey[200],
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [lightPink.withOpacity(0.3), lightPink.withOpacity(0.1)],
+                      ),
+                    ),
                     child: Center(
                       child: CircularProgressIndicator(
                         value: loadingProgress.expectedTotalBytes != null
                             ? loadingProgress.cumulativeBytesLoaded /
                             loadingProgress.expectedTotalBytes!
                             : null,
+                        valueColor: AlwaysStoppedAnimation<Color>(primaryPink),
                       ),
                     ),
                   );
@@ -901,11 +1297,11 @@ class PostCard extends StatelessWidget {
                   return Container(
                     height: 200,
                     decoration: BoxDecoration(
-                      color: Colors.grey[300],
+                      color: lightPink.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.image, size: 50, color: Colors.grey),
+                    child: Center(
+                      child: Icon(Icons.image_rounded, size: 50, color: primaryPink.withOpacity(0.5)),
                     ),
                   );
                 },
@@ -913,52 +1309,62 @@ class PostCard extends StatelessWidget {
             ),
 
           if (post.imageUrl != null && post.imageUrl!.isNotEmpty)
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
           // Tags
           if (post.tags.isNotEmpty)
             Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 8,
+              runSpacing: 8,
               children: post.tags
-                  .map((t) => Chip(
-                label: Text(
-                  "#$t",
-                  style: const TextStyle(fontSize: 12),
+                  .map((t) => Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
                 ),
-                backgroundColor: Colors.blue.shade50,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: lightPink,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "#$t",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontFamily: 'Mont',
+                    fontWeight: FontWeight.w600,
+                    color: primaryPink,
+                  ),
+                ),
               ))
                   .toList(),
             ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Buttons: like, comment, share, bookmark
+          // Action Buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _ActionButton(
-                icon: post.isLiked ? Icons.favorite : Icons.favorite_border,
+                icon: post.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                 label: post.likes > 0 ? post.likes.toString() : null,
-                color: post.isLiked ? Colors.red : Colors.grey[700],
+                color: post.isLiked ? Colors.red : lightText,
                 onTap: onLike,
               ),
               _ActionButton(
-                icon: Icons.chat_bubble_outline,
+                icon: Icons.chat_bubble_rounded,
                 label: post.comments > 0 ? post.comments.toString() : null,
-                color: Colors.grey[700],
+                color: lightText,
                 onTap: onComment,
               ),
               _ActionButton(
-                icon: Icons.share,
-                color: Colors.grey[700],
+                icon: Icons.share_rounded,
+                color: lightText,
                 onTap: onShare,
               ),
               _ActionButton(
-                icon:
-                post.isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                color: post.isBookmarked ? Colors.blueAccent : Colors.grey[700],
+                icon: post.isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                color: post.isBookmarked ? primaryPink : lightText,
                 onTap: onBookmark,
               ),
             ],
@@ -987,21 +1393,22 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: color, size: 22),
             if (label != null) ...[
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               Text(
                 label!,
                 style: TextStyle(
                   color: color,
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Mont',
                 ),
               ),
             ],
@@ -1012,12 +1419,13 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-// ========== COMMENT PAGE WIDGET ==========
+// ========== COMMENT PAGE WIDGET (Kept for compatibility) ==========
 class CommentPage extends StatefulWidget {
   final Post post;
   final AppUser currentUser;
 
   const CommentPage({super.key, required this.post, required this.currentUser});
+
   Future<void> addComment(String postId, String commentText) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -1036,13 +1444,11 @@ class CommentPage extends StatefulWidget {
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // Also increment comment counter
     await FirebaseFirestore.instance
         .collection('posts')
         .doc(postId)
         .update({'comments': FieldValue.increment(1)});
   }
-
 
   @override
   State<CommentPage> createState() => _CommentPageState();
@@ -1057,7 +1463,6 @@ class _CommentPageState extends State<CommentPage> {
     if (text.isEmpty) return;
 
     try {
-      // 1. Add the new comment document (Asynchronous)
       await _firestore
           .collection('posts')
           .doc(widget.post.id)
@@ -1069,19 +1474,14 @@ class _CommentPageState extends State<CommentPage> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // 2. Increment the comment count on the parent post (Asynchronous)
       await _firestore.collection('posts').doc(widget.post.id).update({
         'comments': FieldValue.increment(1),
       });
 
-      // 3. UI interaction must be preceded by a mounted check.
       if (mounted) {
         _commentController.clear();
-        // Optionally, you might want to automatically close the keyboard here.
-        // FocusScope.of(context).unfocus();
       }
     } catch (e) {
-      // Error handling block correctly uses 'if (mounted)'
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error submitting comment: $e')),
@@ -1123,7 +1523,8 @@ class _CommentPageState extends State<CommentPage> {
             '${widget.post.comments} Comments',
             style: const TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'Mont',
             ),
           ),
         ),
@@ -1133,12 +1534,21 @@ class _CommentPageState extends State<CommentPage> {
             stream: _getCommentsStream(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryPink),
+                  ),
+                );
               }
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(
-                  child: Text('Be the first to comment!',
-                      style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    'Be the first to comment!',
+                    style: TextStyle(
+                      color: lightText,
+                      fontFamily: 'Mont',
+                    ),
+                  ),
                 );
               }
 
@@ -1149,15 +1559,35 @@ class _CommentPageState extends State<CommentPage> {
                   final comment = comments[index];
                   return ListTile(
                     leading: CircleAvatar(
-                      child: Text(comment.username[0].toUpperCase()),
+                      backgroundColor: lightPink,
+                      child: Text(
+                        comment.username[0].toUpperCase(),
+                        style: TextStyle(
+                          color: primaryPink,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'Mont',
+                        ),
+                      ),
                     ),
-                    title: Text(comment.username,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
-                    subtitle: Text(comment.text),
+                    title: Text(
+                      comment.username,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        fontFamily: 'Mont',
+                      ),
+                    ),
+                    subtitle: Text(
+                      comment.text,
+                      style: const TextStyle(fontFamily: 'Mont'),
+                    ),
                     trailing: Text(
                       '${(DateTime.now().difference(comment.createdAt.toDate()).inMinutes)}m ago',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: lightText,
+                        fontFamily: 'Mont',
+                      ),
                     ),
                   );
                 },
@@ -1167,19 +1597,20 @@ class _CommentPageState extends State<CommentPage> {
         ),
 
         Padding(
-          padding:
-          MediaQuery.of(context).viewInsets.copyWith(top: 8, bottom: 8),
+          padding: MediaQuery.of(context).viewInsets.copyWith(top: 8, bottom: 8),
           child: TextField(
             controller: _commentController,
             decoration: InputDecoration(
               hintText: 'Add a comment...',
+              hintStyle: const TextStyle(fontFamily: 'Mont'),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
               suffixIcon: IconButton(
-                icon: const Icon(Icons.send, color: Colors.blueAccent),
+                icon: const Icon(Icons.send_rounded, color: primaryPink),
                 onPressed: _submitComment,
               ),
             ),
+            style: const TextStyle(fontFamily: 'Mont'),
             onSubmitted: (_) => _submitComment(),
           ),
         ),
@@ -1187,4 +1618,3 @@ class _CommentPageState extends State<CommentPage> {
     );
   }
 }
-

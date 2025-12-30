@@ -8,10 +8,11 @@
         android:name="com.google.firebase.messaging.default_notification_channel_id"
         android:value="high_importance_channel" />
 
+
     <application
         android:label="Stunify"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/logo">
 
         <meta-data android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDEZD5JDtSClTS3qSrG0OU3dJGo-3OADwY"/>
@@ -19,6 +20,10 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="high_importance_channel" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/logo" />
+
 
         <activity
             android:name=".MainActivity"

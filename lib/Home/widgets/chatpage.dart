@@ -7,9 +7,10 @@ import 'package:intl/intl.dart';
 import 'package:student_unify_app/Models/LendPage.dart';
 import '../../Models/DonateModel.dart';
 import '../../Models/messageModel.dart';
+import '../../services/ChatNotifcationService.dart';
 
 class ChatPage extends StatefulWidget {
-  final String receiverId;
+  final String receiverId; // the OTHER person in the chat (not necessarily the item receiver)
   final String receiverName;
   final String receiverPhoto;
   final Donation? donation;
@@ -34,11 +35,23 @@ class _ChatPageState extends State<ChatPage> {
   late final String currentUserId;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // 🔔 Notification service instance
+  final ChatNotificationService _notificationService = ChatNotificationService();
+
   bool _isTyping = false;
   Timer? _typingTimer;
   StreamSubscription? _typingSubscription;
   bool _receiverIsTyping = false;
   bool _isOnline = false;
+
+  // ✅ TWO-SIDED CONFIRMATION TRACKING (Firestore fields remain donorConfirmed/receiverConfirmed)
+  bool _donorConfirmed = false; // giver confirmed “Has this been given out?”
+  bool _receiverConfirmed = false; // requester confirmed “Have you received the item?”
+  bool _isLoadingStatus = true;
+  bool _itemDeleted = false;
+
+  // ✅ NEW: item missing (wrong collection name / wrong id / deleted)
+  bool _itemMissing = false;
 
   // Helper getters to work with both models
   String get itemId => widget.donation?.id ?? widget.lendModel?.id ?? '';
@@ -47,16 +60,39 @@ class _ChatPageState extends State<ChatPage> {
   String get donorId => widget.donation?.donorId ?? widget.lendModel?.donorId ?? '';
   List<String> get itemImages => widget.donation?.imageUrls ?? widget.lendModel?.imageUrls ?? [];
 
+  // ✅ IMPORTANT: Use the correct collection name for lends
+  String get itemCollection => widget.donation != null ? 'donations' : 'lends';
+
+  // ✅ ROLE: Giver = owner/donor/lender of the item
+  bool get isCurrentUserGiver => currentUserId == donorId;
+
+  // ✅ ROLE: Requester = the other person (not the giver)
+  bool get isCurrentUserRequester => !isCurrentUserGiver;
+
   @override
   void initState() {
     super.initState();
     final user = FirebaseAuth.instance.currentUser;
+
     if (user != null) {
       currentUserId = user.uid;
+
       _setUserOnlineStatus(true);
       _listenToTypingStatus();
       _listenToOnlineStatus();
       _markMessagesAsRead();
+
+      // ✅ LOAD CONFIRMATION STATUS
+      _loadConfirmationStatus();
+
+      // ✅ ENSURE CHAT DOC EXISTS BEFORE CLEARING UNREAD COUNT (prevents NOT_FOUND)
+      Future.microtask(() async {
+        await _ensureChatDocExists();
+        _notificationService.clearUnreadCount(
+          userId: currentUserId,
+          chatId: getChatId(),
+        );
+      });
     } else {
       currentUserId = "ANONYMOUS_USER";
       debugPrint("Auth Error: Current user is not logged in!");
@@ -67,14 +103,11 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
-    // Cancel timers and subscriptions first
     _typingTimer?.cancel();
     _typingSubscription?.cancel();
 
-    // Remove listeners
     _controller.removeListener(_onTypingChanged);
 
-    // Update Firestore directly without calling setState
     _firestore
         .collection('chats')
         .doc(getChatId())
@@ -87,29 +120,324 @@ class _ChatPageState extends State<ChatPage> {
       debugPrint('Error updating typing status on dispose: $error');
     });
 
-    // Update online status
     _setUserOnlineStatus(false);
 
-    // Dispose controllers
     _controller.dispose();
     _scrollController.dispose();
-
     super.dispose();
   }
 
   // ==================== CHAT ID (ONE CHAT PER ITEM) ====================
   String getChatId() {
-    // Include itemId to make chat unique per item
     final users = [currentUserId, widget.receiverId]..sort();
     return "${users[0]}-${users[1]}-$itemId";
   }
 
+  Future<void> _ensureChatDocExists() async {
+    try {
+      await _firestore.collection('chats').doc(getChatId()).set({
+        'participants': [currentUserId, widget.receiverId],
+        'participantNames': {
+          currentUserId: FirebaseAuth.instance.currentUser?.displayName ?? '',
+          widget.receiverId: widget.receiverName,
+        },
+        'donorId': donorId,
+        'itemId': itemId,
+        'itemTitle': itemTitle,
+        'itemImage': itemImages.isNotEmpty ? itemImages.first : null,
+        'itemType': widget.donation != null ? 'donation' : 'lend',
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error ensuring chat doc exists: $e');
+    }
+  }
+
+  // ==================== ✅ TWO-SIDED CONFIRMATION SYSTEM ====================
+
+  void _loadConfirmationStatus() async {
+    setState(() {
+      _isLoadingStatus = true;
+      _itemMissing = false;
+    });
+
+    if (itemId.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingStatus = false;
+        _itemMissing = true;
+        _itemDeleted = false;
+        _donorConfirmed = false;
+        _receiverConfirmed = false;
+      });
+      return;
+    }
+
+    try {
+      DocumentSnapshot doc = await _firestore.collection(itemCollection).doc(itemId).get();
+
+      if (!doc.exists) {
+        if (!mounted) return;
+        setState(() {
+          _itemMissing = true;
+          _itemDeleted = false;
+          _donorConfirmed = false;
+          _receiverConfirmed = false;
+          _isLoadingStatus = false;
+        });
+        return;
+      }
+
+      final data = doc.data() as Map<String, dynamic>?;
+
+      if (!mounted) return;
+      setState(() {
+        _donorConfirmed = data?['donorConfirmed'] ?? false; // giver confirmation
+        _receiverConfirmed = data?['receiverConfirmed'] ?? false; // requester confirmation
+        _itemDeleted = false;
+        _itemMissing = false;
+        _isLoadingStatus = false;
+      });
+
+      if (_donorConfirmed && _receiverConfirmed) {
+        await _markItemAsClaimed();
+      }
+    } catch (e) {
+      debugPrint('Error loading confirmation status: $e');
+      if (!mounted) return;
+      setState(() => _isLoadingStatus = false);
+    }
+  }
+
+  /// ✅ Correct role mapping:
+  /// - GIVER confirms: donorConfirmed
+  /// - REQUESTER confirms: receiverConfirmed
+  Future<void> _updateConfirmation({required bool isGiver}) async {
+    try {
+      // Field names in Firestore
+      final String fieldName = isGiver ? 'donorConfirmed' : 'receiverConfirmed';
+
+      await _firestore.collection(itemCollection).doc(itemId).update({
+        fieldName: true,
+        '${fieldName}Date': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+      setState(() {
+        if (isGiver) {
+          _donorConfirmed = true;
+        } else {
+          _receiverConfirmed = true;
+        }
+      });
+
+      // ✅ Correct system message wording
+      final String statusMessage = isGiver
+          ? '✅ Giver confirmed: Item has been given out'
+          : '✅ Requester confirmed: Item has been received';
+
+      await _firestore.collection('chats').doc(getChatId()).collection('messages').add({
+        'text': statusMessage,
+        'senderId': currentUserId,
+        'receiverId': widget.receiverId,
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'type': 'system',
+      });
+
+      if (_donorConfirmed && _receiverConfirmed) {
+        await _markItemAsClaimed();
+      } else {
+        if (mounted) {
+          // ✅ FIXED: this was reversed before
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isGiver
+                    ? 'Confirmed! Waiting for requester to confirm they received it...'
+                    : 'Confirmed! Waiting for giver to confirm they gave it out...',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+
+      // 🔔 Notify the other person in the chat
+      final senderName = FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
+
+      await _notificationService.sendChatNotification(
+        receiverId: widget.receiverId,
+        senderName: senderName,
+        messageText: statusMessage,
+        chatId: getChatId(),
+        itemTitle: itemTitle,
+        itemImage: itemImages.isNotEmpty ? itemImages.first : null,
+      );
+    } catch (e) {
+      debugPrint('Error updating confirmation: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update confirmation: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _markItemAsClaimed() async {
+    try {
+      final String itemType = widget.donation != null ? 'donation' : 'item';
+
+      // System message in chat
+      await _firestore
+          .collection('chats')
+          .doc(getChatId())
+          .collection('messages')
+          .add({
+        'text':
+        '🎉 Both parties confirmed! This $itemType has been successfully transferred and is now marked as claimed.',
+        'senderId': 'system',
+        'receiverId': widget.receiverId,
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'type': 'system',
+      });
+
+      // ✅ Update item in Firestore (NO DELETE)
+      await _firestore.collection(itemCollection).doc(itemId).set({
+        'status': 'claimed',
+        'claimedAt': FieldValue.serverTimestamp(),
+        'donorConfirmed': true,
+        'receiverConfirmed': true,
+      }, SetOptions(merge: true));
+
+      // ✅ Hide from UI immediately
+      if (!mounted) return;
+      setState(() {
+        _itemDeleted = true; // you can keep this flag meaning "hide from UI"
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Marked as claimed (hidden from listings).'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error marking item as claimed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating item: $e')),
+        );
+      }
+    }
+  }
+
+  // ✅ Correct dialog wording:
+  // - Requester: “Have you received the item?”
+  // - Giver: “Has this been given out?”
+  void _showConfirmationDialog() {
+    final bool isGiver = isCurrentUserGiver;
+    final bool alreadyConfirmed = isGiver ? _donorConfirmed : _receiverConfirmed;
+
+    if (alreadyConfirmed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isGiver
+                ? 'You already confirmed you gave it out. Waiting for requester...'
+                : 'You already confirmed you received it. Waiting for giver...',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final String titleText = isGiver ? 'Confirm Given Out' : 'Confirm Received';
+    final String questionText = isGiver ? 'Has this item been given out?' : 'Have you received the item?';
+    final String confirmBtnText = isGiver ? 'Yes, Given Out' : 'Yes, Received';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              isGiver ? Icons.volunteer_activism : Icons.inventory_2,
+              color: Colors.deepPurple,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                titleText,
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              questionText,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Both parties must confirm before the item is removed from listings.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _updateConfirmation(isGiver: isGiver);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(confirmBtnText),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ==================== ONLINE STATUS ====================
   void _setUserOnlineStatus(bool isOnline) {
-    _firestore
-        .collection('users')
-        .doc(currentUserId)
-        .update({
+    _firestore.collection('users').doc(currentUserId).update({
       'isOnline': isOnline,
       'lastSeen': FieldValue.serverTimestamp(),
     }).catchError((error) {
@@ -118,11 +446,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _listenToOnlineStatus() {
-    _firestore
-        .collection('users')
-        .doc(widget.receiverId)
-        .snapshots()
-        .listen((snapshot) {
+    _firestore.collection('users').doc(widget.receiverId).snapshots().listen((snapshot) {
       if (snapshot.exists && mounted) {
         setState(() {
           _isOnline = snapshot.data()?['isOnline'] ?? false;
@@ -146,7 +470,6 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _setTypingStatus(bool typing) {
-    // Only update state if widget is still mounted
     if (mounted) {
       setState(() => _isTyping = typing);
     }
@@ -181,6 +504,10 @@ class _ChatPageState extends State<ChatPage> {
           final timeDiff = DateTime.now().difference(timestamp.toDate()).inSeconds;
           setState(() {
             _receiverIsTyping = isTyping && timeDiff < 3;
+          });
+        } else {
+          setState(() {
+            _receiverIsTyping = false;
           });
         }
       }
@@ -219,16 +546,11 @@ class _ChatPageState extends State<ChatPage> {
         if (imageUrl != null) 'imageUrl': imageUrl,
       };
 
-      await _firestore
-          .collection('chats')
-          .doc(getChatId())
-          .collection('messages')
-          .add(messageData);
+      await _firestore.collection('chats').doc(getChatId()).collection('messages').add(messageData);
 
       _controller.clear();
       _setTypingStatus(false);
 
-      // Update chat metadata - includes itemId for one chat per item
       await _firestore.collection('chats').doc(getChatId()).set({
         'lastMessage': imageUrl != null ? '📷 Photo' : text,
         'lastMessageTime': FieldValue.serverTimestamp(),
@@ -238,7 +560,7 @@ class _ChatPageState extends State<ChatPage> {
           widget.receiverId: widget.receiverName,
         },
         'donorId': donorId,
-        'itemId': itemId,  // Store itemId for unique chat per item
+        'itemId': itemId,
         'itemTitle': itemTitle,
         'itemImage': itemImages.isNotEmpty ? itemImages.first : null,
         'itemType': widget.donation != null ? 'donation' : 'lend',
@@ -247,8 +569,18 @@ class _ChatPageState extends State<ChatPage> {
         },
       }, SetOptions(merge: true));
 
-      _scrollToBottom();
+      final senderName = FirebaseAuth.instance.currentUser?.displayName ?? 'Someone';
 
+      await _notificationService.sendChatNotification(
+        receiverId: widget.receiverId,
+        senderName: senderName,
+        messageText: imageUrl != null ? '📷 Sent a photo' : text,
+        chatId: getChatId(),
+        itemTitle: itemTitle,
+        itemImage: itemImages.isNotEmpty ? itemImages.first : null,
+      );
+
+      _scrollToBottom();
     } catch (e) {
       debugPrint('Error sending message: $e');
       if (mounted) {
@@ -283,6 +615,11 @@ class _ChatPageState extends State<ChatPage> {
       body: Column(
         children: [
           _buildItemInfoCard(),
+
+          if (_itemMissing) _buildItemMissingBanner(),
+          if (!_itemDeleted && !_itemMissing) _buildConfirmationBanner(),
+          if (_itemDeleted) _buildItemDeletedBanner(),
+
           _buildQuickReplies(),
           Expanded(child: _buildMessagesList()),
           if (_receiverIsTyping) _buildTypingIndicator(),
@@ -303,9 +640,7 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundImage: widget.receiverPhoto.isNotEmpty
-                    ? NetworkImage(widget.receiverPhoto)
-                    : null,
+                backgroundImage: widget.receiverPhoto.isNotEmpty ? NetworkImage(widget.receiverPhoto) : null,
                 child: widget.receiverPhoto.isEmpty
                     ? Text(
                   widget.receiverName[0].toUpperCase(),
@@ -356,15 +691,304 @@ class _ChatPageState extends State<ChatPage> {
       actions: [
         IconButton(
           icon: const Icon(Icons.info_outline),
-          onPressed: () {
-            _showChatInfo();
-          },
+          onPressed: _showChatInfo,
         ),
       ],
     );
   }
 
-  // ==================== ITEM INFO CARD (WORKS FOR BOTH) ====================
+  // ==================== ✅ CONFIRMATION BANNER ====================
+  Widget _buildConfirmationBanner() {
+    if (_isLoadingStatus) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: const Center(
+          child: SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    final bool isGiver = isCurrentUserGiver;
+
+    // ✅ Correct mapping:
+    // Giver's own confirm = donorConfirmed
+    // Requester's own confirm = receiverConfirmed
+    final bool currentUserConfirmed = isGiver ? _donorConfirmed : _receiverConfirmed;
+    final bool otherUserConfirmed = isGiver ? _receiverConfirmed : _donorConfirmed;
+
+    Color bannerColor;
+    Color borderColor;
+    IconData icon;
+    String statusText;
+
+    if (currentUserConfirmed && otherUserConfirmed) {
+      bannerColor = Colors.green.shade50;
+      borderColor = Colors.green;
+      icon = Icons.check_circle;
+      statusText = '🎉 Transfer complete! Item will be removed.';
+    } else if (currentUserConfirmed) {
+      bannerColor = Colors.orange.shade50;
+      borderColor = Colors.orange;
+      icon = Icons.hourglass_empty;
+      statusText = isGiver
+          ? '⏳ Waiting for requester to confirm they received it...'
+          : '⏳ Waiting for giver to confirm they gave it out...';
+    } else if (otherUserConfirmed) {
+      bannerColor = Colors.blue.shade50;
+      borderColor = Colors.blue;
+      icon = Icons.notifications_active;
+      statusText = isGiver
+          ? '📢 Requester confirmed they received it. Please confirm you gave it out!'
+          : '📢 Giver confirmed it was given out. Please confirm you received it!';
+    } else {
+      bannerColor = Colors.grey.shade50;
+      borderColor = Colors.grey.shade400;
+      icon = Icons.help_outline;
+
+      // ✅ FIXED: this was reversed before
+      // Giver should see "given out", Requester should see "received"
+      statusText = isGiver
+          ? '❓ Has this item been given out?'
+          : '❓ Have you received the item?';
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bannerColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 1.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: borderColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    statusText,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildConfirmationStatus(
+                    label: 'Giver',
+                    confirmed: _donorConfirmed,
+                    isCurrentUser: isGiver,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 2,
+                  height: 30,
+                  color: Colors.grey.shade300,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildConfirmationStatus(
+                    label: 'Requester',
+                    confirmed: _receiverConfirmed,
+                    isCurrentUser: !isGiver,
+                  ),
+                ),
+              ],
+            ),
+            if (!currentUserConfirmed) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _showConfirmationDialog,
+                  icon: const Icon(Icons.check_circle, size: 18),
+                  label: Text(
+                    isGiver ? 'Confirm Given Out' : 'Confirm Received',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmationStatus({
+    required String label,
+    required bool confirmed,
+    required bool isCurrentUser,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        color: confirmed ? Colors.green.shade100 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: confirmed ? Colors.green : Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            confirmed ? Icons.check_circle : Icons.radio_button_unchecked,
+            color: confirmed ? Colors.green : Colors.grey.shade500,
+            size: 16,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              isCurrentUser ? 'You' : label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: confirmed ? Colors.green.shade900 : Colors.grey.shade700,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== ITEM MISSING BANNER ====================
+  Widget _buildItemMissingBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade200, width: 2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.error_outline,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Item Not Found',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'This item may have been removed, or the Firestore collection name/id is wrong. '
+                      'Check your lends collection name (e.g. "lends" vs "lendings").',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== ITEM DELETED BANNER ====================
+  Widget _buildItemDeletedBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade50, Colors.green.shade100],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green, width: 2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Colors.green,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_circle,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Transfer Complete! 🎉',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'This ${widget.donation != null ? 'donation' : 'item'} has been successfully transferred and removed from listings.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== ITEM INFO CARD ====================
   Widget _buildItemInfoCard() {
     return Container(
       margin: const EdgeInsets.all(8),
@@ -391,9 +1015,7 @@ class _ChatPageState extends State<ChatPage> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
-            widget.donation != null
-                ? Icons.volunteer_activism
-                : Icons.handshake,
+            widget.donation != null ? Icons.volunteer_activism : Icons.handshake,
             color: Colors.deepPurple,
           ),
         ),
@@ -571,13 +1193,37 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-        date1.month == date2.month &&
-        date1.day == date2.day;
+    return date1.year == date2.year && date1.month == date2.month && date1.day == date2.day;
   }
 
   // ==================== MESSAGE BUBBLE ====================
   Widget _buildMessageBubble(ChatMessage message, bool isMe) {
+    final bool isSystem = message.type == MessageType.system;
+
+    if (isSystem) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              message.text,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade800,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -586,8 +1232,7 @@ class _ChatPageState extends State<ChatPage> {
         ),
         margin: const EdgeInsets.symmetric(vertical: 4),
         child: Column(
-          crossAxisAlignment:
-          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
@@ -674,9 +1319,7 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           CircleAvatar(
             radius: 12,
-            backgroundImage: widget.receiverPhoto.isNotEmpty
-                ? NetworkImage(widget.receiverPhoto)
-                : null,
+            backgroundImage: widget.receiverPhoto.isNotEmpty ? NetworkImage(widget.receiverPhoto) : null,
           ),
           const SizedBox(width: 8),
           Container(
@@ -740,9 +1383,7 @@ class _ChatPageState extends State<ChatPage> {
           children: [
             IconButton(
               icon: Icon(Icons.add_circle_outline, color: Colors.grey.shade700),
-              onPressed: () {
-                _showAttachmentOptions();
-              },
+              onPressed: _showAttachmentOptions,
             ),
             Expanded(
               child: Container(
@@ -894,9 +1535,7 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               CircleAvatar(
                 radius: 40,
-                backgroundImage: widget.receiverPhoto.isNotEmpty
-                    ? NetworkImage(widget.receiverPhoto)
-                    : null,
+                backgroundImage: widget.receiverPhoto.isNotEmpty ? NetworkImage(widget.receiverPhoto) : null,
                 child: widget.receiverPhoto.isEmpty
                     ? Text(
                   widget.receiverName[0].toUpperCase(),
