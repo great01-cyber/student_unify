@@ -139,7 +139,7 @@ class ButtonGrid extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => LendPage(title: 'Lend')),
+                MaterialPageRoute(builder: (_) => LendPage(title: 'Request')),
               );
             },
           ),

@@ -389,7 +389,7 @@ class _LendState extends State<LendPage> {
       appBar: AppBar(
         title: Text(
           widget.title,
-          style: const TextStyle(fontFamily: 'Quicksand', fontWeight: FontWeight.bold),
+          style: const TextStyle(fontFamily: 'Mont', fontWeight: FontWeight.bold),
         ),
         backgroundColor: _headerColor,
         foregroundColor: Colors.white,

@@ -12,7 +12,20 @@
           "package_name": "com.example.student_unify_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "148834837731-kpkh1fkkigkj91imjc69s6m8tl4cs00u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.student_unify_app",
+            "certificate_hash": "a087cdb643d2c8cda39094b32016c716db9924c7"
+          }
+        },
+        {
+          "client_id": "148834837731-dan6fq0oufa6nk6hft62jmkttj4h4nb6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBGbhGIaYQ_J6Y7QGWhnxyVl5BJpUrivcc"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "148834837731-dan6fq0oufa6nk6hft62jmkttj4h4nb6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "148834837731-10a7pu8p13hp2ahp7egre3deog0vir2r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.obinna.studentunify"
+              }
+            }
+          ]
         }
       }
     }

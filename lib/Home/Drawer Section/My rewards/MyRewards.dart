@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'BadgeService.dart';
+// Import the service
 
 class StudentBadgesScreen extends StatefulWidget {
   const StudentBadgesScreen({Key? key}) : super(key: key);
@@ -8,8 +12,11 @@ class StudentBadgesScreen extends StatefulWidget {
   State<StudentBadgesScreen> createState() => _StudentBadgesScreenState();
 }
 
-class _StudentBadgesScreenState extends State<StudentBadgesScreen> with TickerProviderStateMixin {
+class _StudentBadgesScreenState extends State<StudentBadgesScreen>
+    with TickerProviderStateMixin {
   late AnimationController _controller;
+  final BadgeService _badgeService = BadgeService();
+  String? userId;
 
   @override
   void initState() {
@@ -18,6 +25,9 @@ class _StudentBadgesScreenState extends State<StudentBadgesScreen> with TickerPr
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
+
+    // Get current user ID from Firebase Auth
+    userId = FirebaseAuth.instance.currentUser?.uid;
   }
 
   @override
@@ -25,117 +35,6 @@ class _StudentBadgesScreenState extends State<StudentBadgesScreen> with TickerPr
     _controller.dispose();
     super.dispose();
   }
-
-  final List<BadgeModel> badges = [
-    BadgeModel(
-      id: 1,
-      name: 'Peer Helper',
-      description: 'Complete your first donation to unlock this badge',
-      requirement: 'Make 1 donation to a fellow student',
-      icon: Icons.favorite,
-      unlocked: false,
-      gradientColors: [Color(0xFFFB7185), Color(0xFFDB2777)],
-    ),
-    BadgeModel(
-      id: 2,
-      name: 'Campus Champion',
-      description: 'Help multiple students across campus',
-      requirement: 'Support 15 different students',
-      icon: Icons.emoji_events,
-      unlocked: false,
-      gradientColors: [Color(0xFFFBBF24), Color(0xFFEA580C)],
-    ),
-    BadgeModel(
-      id: 3,
-      name: 'Student-to-Student',
-      description: 'Build a stronger student community',
-      requirement: 'Donate to 5 fellow students',
-      icon: Icons.groups,
-      unlocked: false,
-      gradientColors: [Color(0xFF60A5FA), Color(0xFF4F46E5)],
-    ),
-    BadgeModel(
-      id: 4,
-      name: 'Pay It Forward',
-      description: 'Give back after receiving help',
-      requirement: 'Donate after receiving support',
-      icon: Icons.card_giftcard,
-      unlocked: false,
-      gradientColors: [Color(0xFF34D399), Color(0xFF0D9488)],
-    ),
-    BadgeModel(
-      id: 5,
-      name: 'Streak Master',
-      description: 'Keep your giving streak alive',
-      requirement: 'Donate for 7 consecutive days',
-      icon: Icons.flash_on,
-      unlocked: false,
-      gradientColors: [Color(0xFFFACC15), Color(0xFFF97316)],
-    ),
-    BadgeModel(
-      id: 6,
-      name: 'Early Supporter',
-      description: 'Be among the first to help',
-      requirement: 'Donate within 24 hours of campaign launch',
-      icon: Icons.star,
-      unlocked: false,
-      gradientColors: [Color(0xFFC084FC), Color(0xFFDB2777)],
-    ),
-    BadgeModel(
-      id: 7,
-      name: 'Goal Crusher',
-      description: 'Help complete a campaign',
-      requirement: 'Make the donation that reaches 100%',
-      icon: Icons.adjust,
-      unlocked: false,
-      gradientColors: [Color(0xFFF87171), Color(0xFFFB7185)],
-    ),
-    BadgeModel(
-      id: 8,
-      name: 'Consistent Helper',
-      description: 'Small donations, big impact',
-      requirement: 'Make 10 donations of any amount',
-      icon: Icons.trending_up,
-      unlocked: false,
-      gradientColors: [Color(0xFF22D3EE), Color(0xFF2563EB)],
-    ),
-    BadgeModel(
-      id: 9,
-      name: 'Campus Guardian',
-      description: 'A true pillar of support',
-      requirement: 'Help 15 students reach their goals',
-      icon: Icons.workspace_premium,
-      unlocked: false,
-      gradientColors: [Color(0xFFA78BFA), Color(0xFF9333EA)],
-    ),
-    BadgeModel(
-      id: 10,
-      name: 'Community Star',
-      description: 'Inspire others with your generosity',
-      requirement: 'Share campaigns that result in 5+ donations',
-      icon: Icons.auto_awesome,
-      unlocked: false,
-      gradientColors: [Color(0xFFE879F9), Color(0xFFDB2777)],
-    ),
-    BadgeModel(
-      id: 11,
-      name: 'Full Circle',
-      description: 'From receiver to giver',
-      requirement: 'Donate within 30 days of receiving help',
-      icon: Icons.check_circle,
-      unlocked: false,
-      gradientColors: [Color(0xFFA3E635), Color(0xFF16A34A)],
-    ),
-    BadgeModel(
-      id: 12,
-      name: 'Student Legend',
-      description: 'The ultimate student supporter',
-      requirement: 'Complete 100 donations to fellow students',
-      icon: Icons.emoji_events,
-      unlocked: false,
-      gradientColors: [Color(0xFFFCD34D), Color(0xFFF59E0B)],
-    ),
-  ];
 
   void _showBadgeDetail(BadgeModel badge) {
     showModalBottomSheet(
@@ -148,84 +47,223 @@ class _StudentBadgesScreenState extends State<StudentBadgesScreen> with TickerPr
 
   @override
   Widget build(BuildContext context) {
+    // Check if user is logged in
+    if (userId == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Text(
+            'Please log in to view badges',
+            style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 180,
-            floating: false,
-            pinned: true,
-            backgroundColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                'Student Badges',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
-                  color: Color(0xFF1F2937),
-                ),
-              ),
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFF9FAFB),
-                      Color(0xFFFFFFFF),
-                    ],
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: 40,
-                      right: -20,
-                      child: Icon(
-                        Icons.emoji_events,
-                        size: 120,
-                        color: Color(0xFF1F2937).withOpacity(0.03),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: -10,
-                      left: -30,
-                      child: Icon(
-                        Icons.stars,
-                        size: 100,
-                        color: Color(0xFF1F2937).withOpacity(0.03),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: EdgeInsets.all(16),
-            sliver: SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 0.9,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                  return BadgeCard(
-                    badge: badges[index],
-                    onTap: () => _showBadgeDetail(badges[index]),
-                    animation: _controller,
+      body: StreamBuilder<DonationStats>(
+        stream: _badgeService.watchUserStats(userId!),
+        builder: (context, statsSnapshot) {
+          return StreamBuilder<List<BadgeModel>>(
+            stream: _badgeService.watchUserBadges(userId!),
+            builder: (context, badgesSnapshot) {
+              if (badgesSnapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+
+              if (badgesSnapshot.hasError) {
+                return Center(
+                  child: Text('Error loading badges: ${badgesSnapshot.error}'),
+                );
+              }
+
+              final badges = badgesSnapshot.data ?? [];
+              final stats = statsSnapshot.data ??
+                  DonationStats(
+                    totalDonations: 0,
+                    uniqueStudentsHelped: 0,
+                    currentStreak: 0,
                   );
-                },
-                childCount: badges.length,
-              ),
-            ),
-          ),
-        ],
+
+              int unlockedCount = badges.where((b) => b.unlocked).length;
+
+              return CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: 200,
+                    floating: false,
+                    pinned: true,
+                    backgroundColor: Colors.white,
+                    flexibleSpace: FlexibleSpaceBar(
+                      title: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Student Badges',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.5,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          Text(
+                            '$unlockedCount / ${badges.length} Unlocked',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF6B7280),
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      background: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFFF9FAFB),
+                              Color(0xFFFFFFFF),
+                            ],
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: 40,
+                              right: -20,
+                              child: Icon(
+                                Icons.emoji_events,
+                                size: 120,
+                                color: Color(0xFF1F2937).withOpacity(0.03),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: -10,
+                              left: -30,
+                              child: Icon(
+                                Icons.stars,
+                                size: 100,
+                                color: Color(0xFF1F2937).withOpacity(0.03),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Stats section
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Container(
+                        padding: EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xFF4F46E5).withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Your Impact',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatItem(
+                                  'Donations',
+                                  stats.totalDonations.toString(),
+                                  Icons.favorite,
+                                ),
+                                _buildStatItem(
+                                  'Students',
+                                  stats.uniqueStudentsHelped.toString(),
+                                  Icons.people,
+                                ),
+                                _buildStatItem(
+                                  'Streak',
+                                  '${stats.currentStreak}d',
+                                  Icons.flash_on,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        childAspectRatio: 0.9,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                          return BadgeCard(
+                            badge: badges[index],
+                            onTap: () => _showBadgeDetail(badges[index]),
+                            animation: _controller,
+                          );
+                        },
+                        childCount: badges.length,
+                      ),
+                    ),
+                  ),
+
+                  SliverToBoxAdapter(child: SizedBox(height: 30)),
+                ],
+              );
+            },
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.white, size: 28),
+        SizedBox(height: 8),
+        Text(
+          value,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -246,7 +284,8 @@ class BadgeCard extends StatefulWidget {
   State<BadgeCard> createState() => _BadgeCardState();
 }
 
-class _BadgeCardState extends State<BadgeCard> with SingleTickerProviderStateMixin {
+class _BadgeCardState extends State<BadgeCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _scaleController;
   late Animation<double> _scaleAnimation;
 
@@ -302,7 +341,8 @@ class _BadgeCardState extends State<BadgeCard> with SingleTickerProviderStateMix
                 boxShadow: widget.badge.unlocked
                     ? [
                   BoxShadow(
-                    color: widget.badge.gradientColors[0].withOpacity(0.3),
+                    color:
+                    widget.badge.gradientColors[0].withOpacity(0.3),
                     blurRadius: 15,
                     offset: Offset(0, 5),
                   ),
@@ -347,7 +387,8 @@ class _BadgeCardState extends State<BadgeCard> with SingleTickerProviderStateMix
                                   ? [
                                 BoxShadow(
                                   color: Colors.white.withOpacity(
-                                    0.3 + (widget.animation.value * 0.2),
+                                    0.3 +
+                                        (widget.animation.value * 0.2),
                                   ),
                                   blurRadius: 20,
                                   spreadRadius: 2,
@@ -384,14 +425,24 @@ class _BadgeCardState extends State<BadgeCard> with SingleTickerProviderStateMix
                             ),
                           ),
 
-                          // Lock icon for locked badges
+                          // Lock icon or progress for locked badges
                           if (!widget.badge.unlocked) ...[
                             SizedBox(height: 4),
-                            Icon(
-                              Icons.lock_outline,
-                              size: 14,
-                              color: Color(0xFF9CA3AF),
-                            ),
+                            if (widget.badge.maxProgress > 1)
+                              Text(
+                                '${widget.badge.progress}/${widget.badge.maxProgress}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF9CA3AF),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            else
+                              Icon(
+                                Icons.lock_outline,
+                                size: 14,
+                                color: Color(0xFF9CA3AF),
+                              ),
                           ],
                         ],
                       ),
@@ -428,8 +479,12 @@ class BadgeDetailModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double progressPercentage = badge.maxProgress > 0
+        ? (badge.progress / badge.maxProgress).clamp(0.0, 1.0)
+        : 0.0;
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.65,
+      height: MediaQuery.of(context).size.height * 0.7,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
@@ -493,9 +548,7 @@ class BadgeDetailModal extends StatelessWidget {
             child: Icon(
               badge.icon,
               size: 64,
-              color: badge.unlocked
-                  ? Colors.white
-                  : Color(0xFF9CA3AF),
+              color: badge.unlocked ? Colors.white : Color(0xFF9CA3AF),
             ),
           ),
 
@@ -527,9 +580,8 @@ class BadgeDetailModal extends StatelessWidget {
                   : Color(0xFFF59E0B).withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: badge.unlocked
-                    ? Color(0xFF10B981)
-                    : Color(0xFFF59E0B),
+                color:
+                badge.unlocked ? Color(0xFF10B981) : Color(0xFFF59E0B),
                 width: 1.5,
               ),
             ),
@@ -539,13 +591,16 @@ class BadgeDetailModal extends StatelessWidget {
                 Icon(
                   badge.unlocked ? Icons.check_circle : Icons.lock_outline,
                   size: 16,
-                  color: badge.unlocked ? Color(0xFF10B981) : Color(0xFFF59E0B),
+                  color:
+                  badge.unlocked ? Color(0xFF10B981) : Color(0xFFF59E0B),
                 ),
                 SizedBox(width: 6),
                 Text(
                   badge.unlocked ? 'Unlocked' : 'Locked',
                   style: TextStyle(
-                    color: badge.unlocked ? Color(0xFF10B981) : Color(0xFFF59E0B),
+                    color: badge.unlocked
+                        ? Color(0xFF10B981)
+                        : Color(0xFFF59E0B),
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
@@ -571,6 +626,50 @@ class BadgeDetailModal extends StatelessWidget {
           ),
 
           SizedBox(height: 24),
+
+          // Progress bar for locked badges
+          if (!badge.unlocked && badge.maxProgress > 1) ...[
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 30),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Progress',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      Text(
+                        '${badge.progress}/${badge.maxProgress}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4F46E5),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: progressPercentage,
+                      minHeight: 8,
+                      backgroundColor: Color(0xFFE5E7EB),
+                      valueColor:
+                      AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 24),
+          ],
 
           // Requirement
           Container(
@@ -602,7 +701,6 @@ class BadgeDetailModal extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF6B7280),
                         letterSpacing: 0.5,
-                        textBaseline: TextBaseline.alphabetic,
                       ),
                     ),
                   ],
@@ -638,9 +736,6 @@ class BadgeDetailModal extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   elevation: 0,
-                  shadowColor: badge.unlocked
-                      ? badge.gradientColors[0].withOpacity(0.3)
-                      : Colors.transparent,
                 ),
                 child: Text(
                   badge.unlocked ? 'Awesome!' : 'Got it!',
@@ -684,24 +779,4 @@ class PatternPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class BadgeModel {
-  final int id;
-  final String name;
-  final String description;
-  final String requirement;
-  final IconData icon;
-  final bool unlocked;
-  final List<Color> gradientColors;
-
-  BadgeModel({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.requirement,
-    required this.icon,
-    required this.unlocked,
-    required this.gradientColors,
-  });
 }

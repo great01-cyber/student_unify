@@ -45,8 +45,8 @@ class _ChatPageState extends State<ChatPage> {
   bool _isOnline = false;
 
   // ✅ TWO-SIDED CONFIRMATION TRACKING (Firestore fields remain donorConfirmed/receiverConfirmed)
-  bool _donorConfirmed = false; // giver confirmed “Has this been given out?”
-  bool _receiverConfirmed = false; // requester confirmed “Have you received the item?”
+  bool _donorConfirmed = false; // giver confirmed "Has this been given out?"
+  bool _receiverConfirmed = false; // requester confirmed "Have you received the item?"
   bool _isLoadingStatus = true;
   bool _itemDeleted = false;
 
@@ -63,10 +63,20 @@ class _ChatPageState extends State<ChatPage> {
   // ✅ IMPORTANT: Use the correct collection name for lends
   String get itemCollection => widget.donation != null ? 'donations' : 'lends';
 
-  // ✅ ROLE: Giver = owner/donor/lender of the item
-  bool get isCurrentUserGiver => currentUserId == donorId;
+  // ✅ NEW DYNAMIC ROLE LOGIC:
+  // For DONATIONS: donorId is the giver, anyone else is receiver
+  // For LENDS: donorId is the receiver/requester, anyone else is giver
+  bool get isCurrentUserGiver {
+    if (widget.donation != null) {
+      // Donation: owner is the giver
+      return currentUserId == donorId;
+    } else {
+      // Lend/Request: owner is the receiver, anyone else is the giver
+      return currentUserId != donorId;
+    }
+  }
 
-  // ✅ ROLE: Requester = the other person (not the giver)
+  // ✅ ROLE: Requester = opposite of giver
   bool get isCurrentUserRequester => !isCurrentUserGiver;
 
   @override
@@ -76,6 +86,39 @@ class _ChatPageState extends State<ChatPage> {
 
     if (user != null) {
       currentUserId = user.uid;
+
+      // ✅ PREVENT SELF-MESSAGING - Critical check at the start
+      if (currentUserId == widget.receiverId) {
+        // User is trying to message themselves
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.white),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '❌ You cannot message yourself!',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            Navigator.pop(context);
+          }
+        });
+        return;
+      }
 
       _setUserOnlineStatus(true);
       _listenToTypingStatus();
@@ -210,11 +253,11 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   /// ✅ Correct role mapping:
-  /// - GIVER confirms: donorConfirmed
-  /// - REQUESTER confirms: receiverConfirmed
+  /// - GIVER confirms: donorConfirmed (called "giver" in UI)
+  /// - REQUESTER confirms: receiverConfirmed (called "requester" in UI)
   Future<void> _updateConfirmation({required bool isGiver}) async {
     try {
-      // Field names in Firestore
+      // Field names in Firestore (keep as donorConfirmed/receiverConfirmed for consistency)
       final String fieldName = isGiver ? 'donorConfirmed' : 'receiverConfirmed';
 
       await _firestore.collection(itemCollection).doc(itemId).update({
@@ -249,7 +292,6 @@ class _ChatPageState extends State<ChatPage> {
         await _markItemAsClaimed();
       } else {
         if (mounted) {
-          // ✅ FIXED: this was reversed before
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -337,9 +379,9 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  // ✅ Correct dialog wording:
-  // - Requester: “Have you received the item?”
-  // - Giver: “Has this been given out?”
+  // ✅ Correct dialog wording based on dynamic roles:
+  // - Requester: "Have you received the item?"
+  // - Giver: "Has this been given out?"
   void _showConfirmationDialog() {
     final bool isGiver = isCurrentUserGiver;
     final bool alreadyConfirmed = isGiver ? _donorConfirmed : _receiverConfirmed;
@@ -535,6 +577,19 @@ class _ChatPageState extends State<ChatPage> {
     final text = _controller.text.trim();
     if (text.isEmpty && imageUrl == null) return;
 
+    // ✅ EXTRA SAFETY: Prevent sending messages to yourself
+    if (currentUserId == widget.receiverId) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Cannot send messages to yourself!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       final messageData = {
         'text': text,
@@ -714,7 +769,7 @@ class _ChatPageState extends State<ChatPage> {
 
     final bool isGiver = isCurrentUserGiver;
 
-    // ✅ Correct mapping:
+    // ✅ Correct mapping based on dynamic roles:
     // Giver's own confirm = donorConfirmed
     // Requester's own confirm = receiverConfirmed
     final bool currentUserConfirmed = isGiver ? _donorConfirmed : _receiverConfirmed;
@@ -749,8 +804,7 @@ class _ChatPageState extends State<ChatPage> {
       borderColor = Colors.grey.shade400;
       icon = Icons.help_outline;
 
-      // ✅ FIXED: this was reversed before
-      // Giver should see "given out", Requester should see "received"
+      // ✅ Dynamic role-based questions
       statusText = isGiver
           ? '❓ Has this item been given out?'
           : '❓ Have you received the item?';

@@ -466,7 +466,7 @@ class _DonateState extends State<Donate> {
                   decoration: _fancifulDecoration("Estimated Price (£)", Icons.currency_pound),
                   validator: (val) => val!.isEmpty ? "Please enter a price" : null,
                 ),
-                Text("This is how much you will be saving a student from spending. Thank you!.", style: TextStyle(fontSize: 10, fontFamily: 'Mont', color: Colors.black),),
+                Text("This item is not being sold. The estimated price information provided is used solely to record the total value saved by students through donations. Thank you.", style: TextStyle(fontSize: 10, fontFamily: 'Mont', color: Colors.black),),
                 const SizedBox(height: 24),
 
                 // --- Estimated Kg Field ---

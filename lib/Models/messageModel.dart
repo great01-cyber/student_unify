@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ChatMessage {
   final String id;
   final String text;
@@ -50,4 +51,8 @@ class ChatMessage {
   }
 }
 
-enum MessageType { text, image, system }
+enum MessageType {
+  text,
+  image,
+  system  // ✅ Already supports system messages - perfect!
+}
