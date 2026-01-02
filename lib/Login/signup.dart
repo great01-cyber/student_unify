@@ -624,7 +624,7 @@ class SignupFormState extends State<SignupForm> {
                       Text(
                         'Verify your university email to access student features',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 10,
                           color: Colors.grey.shade700,
                           fontFamily: 'Mont',
                         ),
